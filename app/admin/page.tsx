@@ -25,6 +25,7 @@ import {
   collection,
   getDocs,
   deleteDoc,
+  doc,
   query,
   where,
 } from "firebase/firestore";
@@ -183,7 +184,7 @@ export default function AdminPage() {
       const allNotifications = notificationsSnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      }));
+      })) as Array<{ id: string; candidateId?: string; [key: string]: any }>;
 
       // Find orphaned notifications
       const orphanedNotifications = allNotifications.filter(
@@ -265,7 +266,7 @@ export default function AdminPage() {
       const rawTrainers = trainersSnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      }));
+      })) as Array<{ id: string; name?: string; callCenter?: string; type?: string; isActive?: boolean; [key: string]: any }>;
 
       setResult(
         `🔍 Trainer Debug Results:\n\n` +
