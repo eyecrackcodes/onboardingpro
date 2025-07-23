@@ -79,6 +79,10 @@ export interface Candidate {
     backgroundDisclosureCompleted: boolean;
     badgeReceived: boolean;
     itRequestCompleted: boolean;
+    // Training completion tracking (for unlicensed agents)
+    trainingCompleted?: boolean;
+    trainingCompletedDate?: Date;
+    graduatedToLicensing?: boolean; // Indicates they've moved to licensing phase
   };
   readyToGo: boolean;
   status: "Active" | "Completed" | "Dropped" | "On Hold";

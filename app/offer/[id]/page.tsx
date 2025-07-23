@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -21,11 +21,7 @@ export default function OfferSignPage({ params }: { params: Promise<{ id: string
   const [sigCanvas, setSigCanvas] = useState<SignatureCanvas | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchOfferData();
-  }, [id]);
-
-  const fetchOfferData = async () => {
+  const fetchOfferData = useCallback(async () => {
     try {
       console.log("[OfferPage] Fetching offer data for candidate ID:", id);
 
@@ -113,7 +109,11 @@ export default function OfferSignPage({ params }: { params: Promise<{ id: string
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    fetchOfferData();
+  }, [fetchOfferData]);
 
   const handleClear = () => {
     sigCanvas?.clear();

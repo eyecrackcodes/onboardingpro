@@ -105,7 +105,7 @@ export function BackgroundCheckWithIBR({
         }));
       }
     }
-  }, [candidate.personalInfo.name, hasI9Data, i9Data]);
+  }, [candidate.personalInfo.name, hasI9Data, i9Data, isDevMode]);
 
   const bgCheck = candidate.backgroundCheck;
   const interviewPassed =

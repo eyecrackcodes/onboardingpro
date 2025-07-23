@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,11 +43,7 @@ export default function NewCohortPage() {
     startDate: "", // Will be set from predefined options
   });
 
-  useEffect(() => {
-    fetchData();
-  }, [formData.callCenter, formData.classType]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       console.log("[CohortCreation] Fetching trainers for:", {
         callCenter: formData.callCenter,
@@ -76,6 +72,7 @@ export default function NewCohortPage() {
           c.classAssignment?.classType === formData.classType;
 
         if (formData.classType === "UNL") {
+          // For unlicensed classes: require pre-license offer signed
           return (
             hasMatchingClassType &&
             c.licenseStatus === "Unlicensed" &&
@@ -84,10 +81,11 @@ export default function NewCohortPage() {
             !c.classAssignment.startDate // Not already assigned to a specific date
           );
         } else {
+          // For licensed classes: only require license status, no offer requirement
           return (
             hasMatchingClassType &&
             c.licenseStatus === "Licensed" &&
-            c.offers.fullAgentOffer.signed &&
+            c.backgroundCheck.status === "Completed" &&
             !c.classAssignment.startDate // Not already assigned to a specific date
           );
         }
@@ -101,7 +99,11 @@ export default function NewCohortPage() {
     } catch (error) {
       console.error("Error fetching data:", error);
     }
-  };
+  }, [formData.callCenter, formData.classType]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

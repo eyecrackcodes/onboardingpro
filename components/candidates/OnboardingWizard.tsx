@@ -12,6 +12,7 @@ import {
   Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import type { Candidate } from "@/lib/types";
 
 interface OnboardingStep {
@@ -40,6 +41,8 @@ export function OnboardingWizard({
 }: OnboardingWizardProps) {
   // Background check status used throughout component
   const bgCheckStatus = candidate.backgroundCheck.status;
+  const classAssigned = !!candidate.classAssignment.startDate;
+  
   // Calculate which steps are complete, active, or locked
   const getSteps = (): OnboardingStep[] => {
     const interviewComplete =
@@ -56,8 +59,6 @@ export function OnboardingWizard({
     const isLicensed = candidate.licenseStatus === "Licensed";
     const fullOfferSent = candidate.offers?.fullAgentOffer?.sent || false;
     const fullOfferSigned = candidate.offers?.fullAgentOffer?.signed || false;
-    const classAssigned = !!candidate.classAssignment.startDate;
-
     // Only log step calculation when debugging
     // console.log("[OnboardingWizard] Step calculation:", {
     //   interviewComplete,
@@ -156,8 +157,41 @@ export function OnboardingWizard({
         requirements: ["Background check passed", "Candidate is unlicensed"],
         completedAt: candidate.offers.preLicenseOffer.signedAt,
       },
-      // Licensing step only relevant for unlicensed track
-      ...(!isLicensed
+      // Training completion step for unlicensed candidates
+      ...(!isLicensed && preLicenseOfferSigned
+        ? [
+            {
+              id: "training-completion",
+              title: "Complete UNL Training",
+              description: candidate.classAssignment?.trainingCompleted
+                ? "2-week training program completed"
+                : "Complete 2-week unlicensed training program",
+              isComplete: !!candidate.classAssignment?.trainingCompleted,
+              isActive: preLicenseOfferSigned && !candidate.classAssignment?.trainingCompleted,
+              isLocked: !preLicenseOfferSigned,
+              action:
+                preLicenseOfferSigned && !candidate.classAssignment?.trainingCompleted && classAssigned
+                  ? {
+                      label: "Mark Training Complete",
+                      onClick: () => onActionClick("assignment", "training-complete"),
+                    }
+                  : !classAssigned
+                  ? {
+                      label: "Assign to Class",
+                      onClick: () => onActionClick("assignment"),
+                    }
+                  : undefined,
+              requirements: [
+                "Pre-license offer signed",
+                "Assigned to UNL cohort",
+                "Completed 2-week training",
+              ],
+              completedAt: candidate.classAssignment?.trainingCompletedDate,
+            },
+          ]
+        : []),
+      // Licensing step only relevant for unlicensed track after training
+      ...(!isLicensed && candidate.classAssignment?.trainingCompleted
         ? [
             {
               id: "licensing",
@@ -166,19 +200,19 @@ export function OnboardingWizard({
                 "Confirm candidate has passed state exam and obtained license",
               isComplete: isLicensed,
               isActive:
-                preLicenseOfferSigned &&
+                candidate.classAssignment?.trainingCompleted &&
                 !isLicensed &&
                 candidate.licenseStatus === "Unlicensed",
-              isLocked: !preLicenseOfferSigned,
+              isLocked: !candidate.classAssignment?.trainingCompleted,
               action:
-                preLicenseOfferSigned && !isLicensed
+                candidate.classAssignment?.trainingCompleted && !isLicensed
                   ? {
                       label: "Mark Licensed",
                       onClick: () => onActionClick("licensing", "mark"),
                     }
                   : undefined,
               requirements: [
-                "Pre-license offer signed",
+                "Completed UNL training",
                 "State exam scheduled & passed",
               ],
               completedAt: candidate.licensing?.licensePassedAt,
@@ -209,7 +243,7 @@ export function OnboardingWizard({
       {
         id: "class-assignment",
         title: "Class Assignment",
-        description: "Assign to training class and complete onboarding",
+        description: getClassAssignmentDescription(),
         isComplete: candidate.readyToGo,
         isActive:
           (preLicenseOfferSigned || fullOfferSigned) && !candidate.readyToGo,
@@ -235,6 +269,29 @@ export function OnboardingWizard({
           : undefined,
       },
     ];
+
+    function getClassAssignmentDescription() {
+      if (!classAssigned) {
+        return "Assign to training class and complete onboarding";
+      }
+      
+      // Calculate onboarding progress
+      const tasks = [
+        candidate.classAssignment.preStartCallCompleted,
+        candidate.classAssignment.startConfirmed,
+        candidate.classAssignment.backgroundDisclosureCompleted,
+        candidate.classAssignment.badgeReceived,
+        candidate.classAssignment.itRequestCompleted,
+      ];
+      const completedTasks = tasks.filter(Boolean).length;
+      const totalTasks = tasks.length;
+      
+      if (candidate.readyToGo) {
+        return "All onboarding tasks completed - Ready to start!";
+      } else {
+        return `Onboarding in progress (${completedTasks}/${totalTasks} tasks completed)`;
+      }
+    }
 
     return steps;
   };
@@ -333,10 +390,24 @@ export function OnboardingWizard({
                       {bgCheckStatus}
                     </StatusBadge>
                   )}
+                  {step.id === "class-assignment" && classAssigned && !candidate.readyToGo && (
+                    <StatusBadge variant="secondary">
+                      {(() => {
+                        const tasks = [
+                          candidate.classAssignment.preStartCallCompleted,
+                          candidate.classAssignment.startConfirmed,
+                          candidate.classAssignment.backgroundDisclosureCompleted,
+                          candidate.classAssignment.badgeReceived,
+                          candidate.classAssignment.itRequestCompleted,
+                        ];
+                        const completed = tasks.filter(Boolean).length;
+                        return `${completed}/5`;
+                      })()}
+                    </StatusBadge>
+                  )}
                   {step.completedAt && (
                     <span className="text-xs text-gray-500">
-                      Completed{" "}
-                      {new Date(step.completedAt).toLocaleDateString()}
+                      {formatDate(step.completedAt)}
                     </span>
                   )}
                 </div>

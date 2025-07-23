@@ -165,8 +165,19 @@ export default function CandidateDetailPage() {
       setActiveTab("licensing");
     } else if (step === "assignment") {
       setActiveTab("assignment");
+      // Handle training completion action
+      if (action === "training-complete" && candidate) {
+        handleUpdate({
+          classAssignment: {
+            ...candidate.classAssignment,
+            trainingCompleted: true,
+            trainingCompletedDate: new Date(),
+            graduatedToLicensing: true,
+          }
+        });
+      }
     }
-  }, []);
+  }, [candidate, handleUpdate]);
 
   const handleDeleteCandidate = async () => {
     if (!candidate) return;

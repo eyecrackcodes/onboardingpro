@@ -31,10 +31,15 @@ const templates = [
   },
 ];
 
-function defaultTemplate(candidate: Candidate) {
-  // Use assigned class type if available, otherwise fall back to license status
+interface OfferSenderProps {
+  candidate: Candidate;
+  isFullAgentOffer?: boolean;
+}
+
+function defaultTemplate(candidate: Candidate, isFullAgentOffer?: boolean) {
+  // For full agent offers, always use licensed templates
   const assignedClassType = candidate.classAssignment?.classType;
-  const isLicensedClass =
+  const isLicensedClass = isFullAgentOffer || 
     assignedClassType === "AGENT" ||
     (assignedClassType === undefined && candidate.licenseStatus === "Licensed");
 
@@ -51,6 +56,7 @@ function defaultTemplate(candidate: Candidate) {
     callCenter: candidate.callCenter,
     location: loc,
     isLicensedClass,
+    isFullAgentOffer,
   });
 
   if (loc === "austin") {
@@ -64,13 +70,9 @@ function defaultTemplate(candidate: Candidate) {
   }
 }
 
-export function OfferSender({ candidate }: { candidate: Candidate }) {
-  const [templateId, setTemplateId] = useState(defaultTemplate(candidate));
+export function OfferSender({ candidate, isFullAgentOffer = false }: OfferSenderProps) {
+  const [templateId, setTemplateId] = useState(defaultTemplate(candidate, isFullAgentOffer));
   const [sending, setSending] = useState(false);
-
-  // Check I9 status - offer can only be sent after I9 is completed
-  const i9Status = (candidate as any).i9Status;
-  const isI9Completed = i9Status === "completed";
 
   // Calculate projected start date using the new cohort dates system
   const projectedStartDate = getProjectedStartDate(candidate);
@@ -85,25 +87,30 @@ export function OfferSender({ candidate }: { candidate: Candidate }) {
       (candidate.licenseStatus === "Licensed" ? "AGENT" : "UNL"),
     projectedStartDate,
     formattedStartDate,
+    isFullAgentOffer,
   });
 
   const handleSend = async () => {
     try {
       setSending(true);
-      console.log("[OfferSender] Starting offer send process...");
+      console.log(`[OfferSender] Starting ${isFullAgentOffer ? 'full agent' : 'pre-license'} offer send process...`);
+
+      // Create a unique document ID for each offer type
+      const offerId = isFullAgentOffer ? `${candidate.id}_full` : candidate.id;
 
       console.log("[OfferSender] Creating Firestore offer document...");
-      await setDoc(doc(db, "offers", candidate.id), {
+      await setDoc(doc(db, "offers", offerId), {
         templateId,
         candidateName: candidate.personalInfo.name,
         candidateEmail: candidate.personalInfo.email,
         projectedStartDate: projectedStartDate,
         formattedStartDate: formattedStartDate,
-        classType:
-          candidate.classAssignment?.classType ||
-          (candidate.licenseStatus === "Licensed" ? "AGENT" : "UNL"),
+        classType: isFullAgentOffer ? "AGENT" : 
+          (candidate.classAssignment?.classType ||
+          (candidate.licenseStatus === "Licensed" ? "AGENT" : "UNL")),
         callCenter: candidate.callCenter,
         licenseStatus: candidate.licenseStatus,
+        offerType: isFullAgentOffer ? "fullAgent" : "preLicense",
         sentAt: serverTimestamp(),
         signed: false,
       });
@@ -121,7 +128,7 @@ export function OfferSender({ candidate }: { candidate: Candidate }) {
       const emailData = {
         to: candidate.personalInfo.email,
         name: candidate.personalInfo.name,
-        link: `${window.location.origin}/offer/${candidate.id}`,
+        link: `${window.location.origin}/offer/${offerId}`,
       };
       console.log("[OfferSender] Calling email API with data:", emailData);
 
@@ -161,7 +168,7 @@ export function OfferSender({ candidate }: { candidate: Candidate }) {
             }` +
             `Check the browser console for the email content.\n\n` +
             `To: ${candidate.personalInfo.email}\n` +
-            `Link: ${window.location.origin}/offer/${candidate.id}\n` +
+            `Link: ${window.location.origin}/offer/${offerId}\n` +
             `Start Date: ${formattedStartDate}`
         );
       } else {
@@ -176,48 +183,6 @@ export function OfferSender({ candidate }: { candidate: Candidate }) {
       setSending(false);
     }
   };
-
-  // Show I9 requirement warning if not completed
-  if (!isI9Completed) {
-    return (
-      <div className="space-y-3">
-        <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-          <div className="flex items-center gap-2 text-yellow-800 mb-2">
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-2.694-.833-3.464 0L3.35 16.5c-.77.833.192 2.5 1.732 2.5z"
-              />
-            </svg>
-            <span className="font-medium">I-9 Verification Required</span>
-          </div>
-          <p className="text-sm text-yellow-700 mb-3">
-            The candidate must complete their I-9 Employment Eligibility
-            Verification form before an offer letter can be sent.
-          </p>
-          <div className="text-sm text-gray-600">
-            <p>
-              <strong>Current I-9 Status:</strong>{" "}
-              {i9Status
-                ? i9Status.charAt(0).toUpperCase() + i9Status.slice(1)
-                : "Not sent"}
-            </p>
-            <p>
-              <strong>Required Action:</strong> Complete I-9 form in the &quot;I-9
-              Form&quot; tab first
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-3">

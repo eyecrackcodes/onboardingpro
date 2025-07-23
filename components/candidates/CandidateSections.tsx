@@ -50,6 +50,7 @@ import { InterviewEvaluationForm } from "./InterviewEvaluationForm";
 import { OfferSender } from "./OfferSender";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { cn } from "@/lib/utils";
 
 interface SectionProps {
   candidate: Candidate;
@@ -434,15 +435,50 @@ export function OffersSection({ candidate, onUpdate }: SectionProps) {
                       </>
                     )}
                   </Button>
+                  
+                  <Button
+                    onClick={() => window.open(`/offer/${candidate.id}_full`, "_blank")}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View Offer
+                  </Button>
                 </div>
               )}
             </div>
           ) : (
-            <Button
-              onClick={() => onUpdate("offers.fullAgentOffer.sent", true)}
-            >
-              Send Full Agent Offer
-            </Button>
+            <div className="space-y-3">
+              {/* Manual Full Agent Offer Sending */}
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 className="font-medium text-blue-800 mb-1">Full Agent Offer</h4>
+                <p className="text-sm text-blue-600 mb-3">
+                  Send full agent offer manually for candidates who have passed their licensing exam or are already licensed.
+                </p>
+                <p className="text-xs text-blue-500 mb-3">
+                  <strong>Note:</strong> This offer should only be sent after the candidate has obtained their license and passed their exam.
+                </p>
+                
+                {candidate.licenseStatus === "Licensed" ? (
+                  <div className="space-y-2">
+                    <div className="text-sm text-green-700 mb-2">
+                      ✓ Candidate is licensed and eligible for full agent offer
+                    </div>
+                    <OfferSender candidate={candidate} isFullAgentOffer={true} />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="text-sm text-amber-700 mb-2">
+                      ⚠️ Candidate license status: {candidate.licenseStatus}
+                    </div>
+                    <div className="text-xs text-gray-600 mb-2">
+                      You can still send the offer manually, but consider updating license status first.
+                    </div>
+                    <OfferSender candidate={candidate} isFullAgentOffer={true} />
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -544,16 +580,116 @@ export function ClassAssignmentSection({ candidate, onUpdate }: SectionProps) {
     startDate: undefined as Date | undefined,
     preStartCallCompleted: false,
     startConfirmed: false,
-    sysOnboarding: false,
+    backgroundDisclosureCompleted: false,
+    badgeReceived: false,
+    itRequestCompleted: false,
+    trainingCompleted: false,
+    trainingCompletedDate: undefined as Date | undefined,
+    graduatedToLicensing: false,
     ...baseAssignment,
   };
+  
+  const onboardingTasks = [
+    { key: "preStartCallCompleted", label: "Pre-start call completed", completed: assignment.preStartCallCompleted },
+    { key: "startConfirmed", label: "Start confirmed", completed: assignment.startConfirmed },
+    { key: "backgroundDisclosureCompleted", label: "Background disclosure completed", completed: assignment.backgroundDisclosureCompleted },
+    { key: "badgeReceived", label: "Badge received", completed: assignment.badgeReceived },
+    { key: "itRequestCompleted", label: "IT request completed", completed: assignment.itRequestCompleted },
+  ];
+  
+  const completedTasks = onboardingTasks.filter(task => task.completed).length;
+  const totalTasks = onboardingTasks.length;
+  const completionPercentage = (completedTasks / totalTasks) * 100;
+
+  // Check if this is an unlicensed candidate in training
+  const isUnlicensedTraining = candidate.licenseStatus === "Unlicensed" && 
+    assignment.classType === "UNL" && 
+    assignment.startDate;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Class Assignment</CardTitle>
+        <CardTitle>Class Assignment & Onboarding</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Progress Overview */}
+        {assignment.startDate && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium text-blue-900">Onboarding Progress</h4>
+              <span className="text-sm font-medium text-blue-700">
+                {completedTasks}/{totalTasks} completed
+              </span>
+            </div>
+            <Progress value={completionPercentage} className="h-2" />
+            {completionPercentage === 100 && (
+              <div className="flex items-center gap-2 text-green-700">
+                <CheckCircle2 className="h-4 w-4" />
+                <span className="text-sm font-medium">All onboarding tasks complete!</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Training Completion for Unlicensed Candidates */}
+        {isUnlicensedTraining && (
+          <Card className="border-purple-200 bg-purple-50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base text-purple-900">UNL Training Status</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {assignment.trainingCompleted ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-green-700">
+                    <CheckCircle2 className="h-5 w-5" />
+                    <span className="font-medium">Training Completed!</span>
+                  </div>
+                  {assignment.trainingCompletedDate && (
+                    <p className="text-sm text-gray-600">
+                      Completed on {formatDate(assignment.trainingCompletedDate)}
+                    </p>
+                  )}
+                  <p className="text-sm text-purple-700">
+                    Candidate is now ready to take the state licensing exam.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-purple-700">
+                    Candidate is currently in the 2-week UNL training program.
+                  </p>
+                  {assignment.startDate && (
+                    <p className="text-sm text-gray-600">
+                      Expected completion: {formatDate(
+                        new Date(new Date(assignment.startDate).getTime() + 14 * 24 * 60 * 60 * 1000)
+                      )}
+                    </p>
+                  )}
+                  <div className="flex items-center space-x-2 pt-2">
+                    <Checkbox
+                      id="trainingCompleted"
+                      checked={assignment.trainingCompleted || false}
+                      onCheckedChange={(checked) => {
+                        onUpdate("classAssignment.trainingCompleted", checked);
+                        if (checked) {
+                          onUpdate("classAssignment.trainingCompletedDate", new Date());
+                          onUpdate("classAssignment.graduatedToLicensing", true);
+                        } else {
+                          onUpdate("classAssignment.trainingCompletedDate", undefined);
+                          onUpdate("classAssignment.graduatedToLicensing", false);
+                        }
+                      }}
+                    />
+                    <Label htmlFor="trainingCompleted" className="font-medium">
+                      Mark 2-week training as completed
+                    </Label>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+        
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label>Class Type</Label>
@@ -594,60 +730,52 @@ export function ClassAssignmentSection({ candidate, onUpdate }: SectionProps) {
           </div>
         </div>
 
-        <div className="space-y-3">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="preStartCall"
-              checked={assignment.preStartCallCompleted}
-              onCheckedChange={(checked) =>
-                onUpdate("classAssignment.preStartCallCompleted", checked)
-              }
-            />
-            <Label htmlFor="preStartCall">Pre-start call completed</Label>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="startConfirmed"
-              checked={assignment.startConfirmed}
-              onCheckedChange={(checked) =>
-                onUpdate("classAssignment.startConfirmed", checked)
-              }
-            />
-            <Label htmlFor="startConfirmed">Start confirmed</Label>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="sysOnboarding"
-              checked={assignment.sysOnboarding}
-              onCheckedChange={(checked) =>
-                onUpdate("classAssignment.sysOnboarding", checked)
-              }
-            />
-            <Label htmlFor="sysOnboarding">Systems onboarding complete</Label>
-          </div>
-
-          {assignment.startDate && assignment.startConfirmed && (
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <div className="flex items-center gap-2 text-blue-800">
-                <Calendar className="h-5 w-5" />
-                <span className="font-medium">Class Assignment Confirmed</span>
+        {/* Onboarding Checklist */}
+        <div className="space-y-2">
+          <h4 className="font-medium text-gray-700 mb-3">Onboarding Checklist</h4>
+          <div className="space-y-3 pl-2">
+            {onboardingTasks.map((task) => (
+              <div key={task.key} className="flex items-center space-x-2">
+                <Checkbox
+                  id={task.key}
+                  checked={task.completed}
+                  onCheckedChange={(checked) =>
+                    onUpdate(`classAssignment.${task.key}`, checked)
+                  }
+                />
+                <Label 
+                  htmlFor={task.key} 
+                  className={cn(
+                    "cursor-pointer",
+                    task.completed && "text-gray-500 line-through"
+                  )}
+                >
+                  {task.label}
+                </Label>
               </div>
-              <div className="text-sm text-blue-600 mt-1">
-                Starts {formatDate(assignment.startDate)}
-              </div>
+            ))}
+          </div>
+        </div>
+
+        {assignment.startDate && assignment.startConfirmed && (
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <div className="flex items-center gap-2 text-blue-800">
+              <Calendar className="h-5 w-5" />
+              <span className="font-medium">Class Assignment Confirmed</span>
             </div>
-          )}
-
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="readyToGo"
-              checked={candidate.readyToGo}
-              onCheckedChange={(checked) => onUpdate("readyToGo", checked)}
-            />
-            <Label htmlFor="readyToGo">All onboarding tasks complete</Label>
+            <div className="text-sm text-blue-600 mt-1">
+              Starts {formatDate(assignment.startDate)}
+            </div>
           </div>
+        )}
+
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="readyToGo"
+            checked={candidate.readyToGo}
+            onCheckedChange={(checked) => onUpdate("readyToGo", checked)}
+          />
+          <Label htmlFor="readyToGo">All onboarding tasks complete</Label>
         </div>
       </CardContent>
     </Card>
