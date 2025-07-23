@@ -84,7 +84,9 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.error("Error creating trainer:", error);
-      setResult(`❌ Error creating trainer: ${error}\n\nStack: ${error.stack}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : '';
+      setResult(`❌ Error creating trainer: ${errorMessage}${errorStack ? `\n\nStack: ${errorStack}` : ''}`);
     } finally {
       setCreating(false);
     }
@@ -315,8 +317,10 @@ export default function AdminPage() {
       );
     } catch (error) {
       console.error("Error debugging trainers:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : '';
       setResult(
-        `❌ Error debugging trainers: ${error}\n\nStack: ${error.stack}`
+        `❌ Error debugging trainers: ${errorMessage}${errorStack ? `\n\nStack: ${errorStack}` : ''}`
       );
     } finally {
       setDebugging(false);
