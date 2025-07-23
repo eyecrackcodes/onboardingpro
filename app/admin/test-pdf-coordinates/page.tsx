@@ -85,7 +85,7 @@ export default function TestPDFCoordinatesPage() {
   const adjustCoordinate = (field: keyof typeof testData, delta: number) => {
     setTestData((prev) => ({
       ...prev,
-      [field]: prev[field] + delta,
+      [field]: typeof prev[field] === 'number' ? prev[field] + delta : prev[field],
     }));
   };
 

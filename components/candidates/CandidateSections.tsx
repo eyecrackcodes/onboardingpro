@@ -451,6 +451,11 @@ export function OffersSection({ candidate, onUpdate }: SectionProps) {
 }
 
 export function LicensingSection({ candidate, onUpdate }: SectionProps) {
+  // Ensure candidate exists and has proper structure
+  if (!candidate) {
+    return null;
+  }
+
   const licensing = candidate.licensing || {
     licenseObtained: false,
     licensePassed: false,
@@ -469,7 +474,7 @@ export function LicensingSection({ candidate, onUpdate }: SectionProps) {
         <div className="bg-gray-50 p-4 rounded-lg">
           <div className="text-sm font-medium">Current License Status</div>
           <div className="text-2xl font-bold mt-1">
-            {candidate.licenseStatus}
+            {candidate.licenseStatus || "Unknown"}
           </div>
         </div>
 
