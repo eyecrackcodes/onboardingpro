@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
     console.log("[Sign API] PDF buffer size:", pdfBuffer.length, "bytes");
 
     // Upload to Firebase Storage
+    let signedUrl: string | null = null;
     try {
       const fileRef = ref(storage, `signed-offers/${offerId}.pdf`);
       console.log("[Sign API] Storage reference path:", fileRef.fullPath);
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
       const uploadResult = await uploadBytes(fileRef, pdfBuffer);
       console.log("[Sign API] Upload completed:", uploadResult.metadata.name);
 
-      const signedUrl = await getDownloadURL(fileRef);
+      signedUrl = await getDownloadURL(fileRef);
       console.log("[Sign API] Download URL obtained:", signedUrl);
     } catch (storageError: any) {
       console.error("[Sign API] Storage error details:", {

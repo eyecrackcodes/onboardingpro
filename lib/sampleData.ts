@@ -100,7 +100,6 @@ export const createSampleCandidate = (
             : undefined,
       },
       fullAgentOffer: {
-        eligible: isLicensed,
         sent: isLicensed && Math.random() > 0.5,
         sentAt:
           isLicensed && Math.random() > 0.5

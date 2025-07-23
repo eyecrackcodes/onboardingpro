@@ -41,8 +41,8 @@ interface InterviewSchedulerProps {
 
 export default function InterviewScheduler({
   candidate,
-  onSchedule,
-  onClose,
+  onScheduled,
+  onCancel,
 }: InterviewSchedulerProps) {
   console.log(
     "[InterviewScheduler] Component rendered with candidate:",
@@ -277,7 +277,7 @@ export default function InterviewScheduler({
           notes ||
           `${interviewTitle}\n\nCandidate: ${
             candidate.personalInfo.name
-          }\nPosition: ${candidate.position || "Call Center Representative"}`,
+          }\nPosition: Call Center Representative`,
         conferenceType: meetingType,
         eventTitle: interviewTitle, // Add this to the interface
       });
@@ -287,7 +287,7 @@ export default function InterviewScheduler({
         eventId
       );
 
-      onSchedule({
+      onScheduled({
         scheduledDate: selectedTime,
         calendarEventId: eventId,
         location:
@@ -633,7 +633,7 @@ export default function InterviewScheduler({
                 </>
               )}
             </Button>
-            <Button variant="outline" onClick={onClose} disabled={loading}>
+            <Button variant="outline" onClick={onCancel} disabled={loading}>
               Cancel
             </Button>
           </div>

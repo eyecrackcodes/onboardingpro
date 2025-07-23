@@ -1,12 +1,14 @@
 // Centralized Interview Service
 // Handles all interview-related business logic and state management
 
-import { Candidate, Interview, InterviewEvaluation } from "./types";
+import { Candidate, InterviewEvaluation } from "./types";
+
+type Interview = Candidate["interview"];
 import { updateCandidate } from "./firestore";
 
 export class InterviewService {
   // Interview status transitions and validation
-  private static readonly STATUS_TRANSITIONS = {
+  private static readonly STATUS_TRANSITIONS: Record<Interview["status"], Interview["status"][]> = {
     "Not Started": ["Scheduled"],
     Scheduled: ["In Progress", "Not Started"], // Can cancel back to Not Started
     "In Progress": ["Completed"],

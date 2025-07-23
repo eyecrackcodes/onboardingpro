@@ -64,7 +64,10 @@ export default function NewCandidatePage() {
         callCenter: formData.callCenter,
         licenseStatus: formData.licenseStatus,
         notes: formData.notes,
-        hiringPhase: "Initial",
+        interview: {
+          status: "Not Started",
+          evaluations: [],
+        },
         backgroundCheck: {
           initiated: false,
           status: "Pending",
@@ -76,20 +79,23 @@ export default function NewCandidatePage() {
             signed: false,
           },
           fullAgentOffer: {
-            eligible: false,
             sent: false,
             signed: false,
           },
         },
         licensing: {
+          licenseObtained: false,
           licensePassed: false,
+          examAttempts: 0,
         },
         classAssignment: {
           classType: classType,
           startDate: startDate,
           preStartCallCompleted: false,
           startConfirmed: !!startDate,
-          sysOnboarding: false,
+          backgroundDisclosureCompleted: false,
+          badgeReceived: false,
+          itRequestCompleted: false,
         },
         status: "Active",
         readyToGo: false,

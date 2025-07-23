@@ -113,9 +113,7 @@ export function OnboardingWizard({
         id: "background",
         title: "Background Check",
         description:
-          bgCheckStatus === "Review"
-            ? "Background check requires manual review"
-            : bgCheckStatus === "Failed"
+          bgCheckStatus === "Failed"
             ? "Background check failed – review details"
             : "Complete background check process",
         isComplete: bgCheckComplete,
@@ -126,7 +124,7 @@ export function OnboardingWizard({
             ? {
                 label:
                   candidate.backgroundCheck.initiated &&
-                  (bgCheckStatus === "Review" || bgCheckStatus === "Failed")
+                  bgCheckStatus === "Failed"
                     ? "View Details"
                     : candidate.backgroundCheck.initiated
                     ? "Check Status"
@@ -327,9 +325,7 @@ export function OnboardingWizard({
                   {step.id === "background" && (
                     <StatusBadge
                       variant={
-                        bgCheckStatus === "Review"
-                          ? "destructive"
-                          : bgCheckStatus === "Failed"
+                        bgCheckStatus === "Failed"
                           ? "outline"
                           : "secondary"
                       }

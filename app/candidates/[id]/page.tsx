@@ -17,7 +17,7 @@ import {
 import { formatDate } from "@/lib/utils";
 import type { Candidate } from "@/lib/types";
 import {
-  ContactSection,
+  BackgroundCheckSection,
   ClassAssignmentSection,
   OffersSection,
   LicensingSection,
@@ -81,7 +81,7 @@ export default function CandidateDetailPage() {
       const cleanUpdates = Object.entries(updates).reduce(
         (acc, [key, value]) => {
           if (value !== undefined) {
-            acc[key as keyof Candidate] = value;
+            (acc as any)[key as keyof Candidate] = value;
           }
           return acc;
         },
@@ -436,7 +436,12 @@ export default function CandidateDetailPage() {
         </TabsContent>
 
         <TabsContent value="i9" className="space-y-6">
-          <I9Sender candidate={candidate} onUpdate={handleUpdate} />
+          <I9Sender 
+            candidate={candidate} 
+            onUpdate={(field: string, value: any) => {
+              handleUpdate({ [field]: value });
+            }} 
+          />
         </TabsContent>
 
         <TabsContent value="offers" className="space-y-6">
@@ -468,15 +473,17 @@ export default function CandidateDetailPage() {
                 if (path.length === 3) {
                   // offers.preLicenseOffer.sent format
                   const [, offerType, fieldName] = path;
-                  updatedOffers[offerType] = {
-                    ...updatedOffers[offerType],
+                  (updatedOffers as any)[offerType] = {
+                    ...(updatedOffers as any)[offerType],
                     [fieldName]: value,
                   };
                 }
 
                 handleUpdate({ offers: updatedOffers });
-              } else {
+              } else if (typeof field === "string") {
                 handleUpdate({ [field]: value });
+              } else {
+                handleUpdate(field);
               }
             }}
           />
@@ -484,30 +491,48 @@ export default function CandidateDetailPage() {
 
         <TabsContent value="licensing" className="space-y-6">
           <LicensingSection
-            licensing={candidate.licensing}
-            licenseStatus={candidate.licenseStatus}
-            onUpdate={(updates) => {
-              const updatedLicensing = { ...candidate.licensing, ...updates };
-              handleUpdate({ licensing: updatedLicensing });
+            candidate={candidate}
+            saving={false}
+            onUpdate={(field, value) => {
+              if (typeof field === "string") {
+                if (field === "licenseStatus") {
+                  handleUpdate({ licenseStatus: value });
+                } else if (field.startsWith("licensing.")) {
+                  const fieldName = field.replace("licensing.", "");
+                  const updatedLicensing = { ...candidate.licensing, [fieldName]: value };
+                  handleUpdate({ licensing: updatedLicensing });
+                } else {
+                  handleUpdate({ [field]: value });
+                }
+              } else {
+                handleUpdate(field);
+              }
             }}
-            onLicenseStatusChange={(status) =>
-              handleUpdate({ licenseStatus: status })
-            }
           />
         </TabsContent>
 
         <TabsContent value="assignment" className="space-y-6">
           <ClassAssignmentSection
-            classAssignment={candidate.classAssignment}
-            readyToGo={candidate.readyToGo}
-            onUpdate={(updates) => {
-              const updatedAssignment = {
-                ...candidate.classAssignment,
-                ...updates,
-              };
-              handleUpdate({ classAssignment: updatedAssignment });
+            candidate={candidate}
+            saving={false}
+            onUpdate={(field, value) => {
+              if (typeof field === "string") {
+                if (field === "readyToGo") {
+                  handleUpdate({ readyToGo: value });
+                } else if (field.startsWith("classAssignment.")) {
+                  const fieldName = field.replace("classAssignment.", "");
+                  const updatedAssignment = {
+                    ...candidate.classAssignment,
+                    [fieldName]: value,
+                  };
+                  handleUpdate({ classAssignment: updatedAssignment });
+                } else {
+                  handleUpdate({ [field]: value });
+                }
+              } else {
+                handleUpdate(field);
+              }
             }}
-            onReadyToGoChange={(ready) => handleUpdate({ readyToGo: ready })}
           />
         </TabsContent>
       </Tabs>

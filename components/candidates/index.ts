@@ -1,9 +1,14 @@
 export { BackgroundCheckReleaseForm } from "./BackgroundCheckReleaseForm";
 export { BackgroundCheckWithIBR } from "./BackgroundCheckWithIBR";
-export { CandidateSections } from "./CandidateSections";
+export { 
+  BackgroundCheckSection, 
+  OffersSection, 
+  LicensingSection, 
+  ClassAssignmentSection 
+} from "./CandidateSections";
 export { InterviewEvaluationForm } from "./InterviewEvaluationForm";
 export { InterviewProgressIndicator } from "./InterviewProgressIndicator";
-export { InterviewScheduler } from "./InterviewScheduler";
+export { default as InterviewScheduler } from "./InterviewScheduler";
 export { InterviewSection } from "./InterviewSection";
 export { OnboardingWizard } from "./OnboardingWizard";
 export { ProgressPipeline } from "./ProgressPipeline";

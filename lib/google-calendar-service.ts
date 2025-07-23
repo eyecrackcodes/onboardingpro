@@ -30,7 +30,7 @@ export interface InterviewEvent {
 
 export class GoogleCalendarService {
   private static instance: GoogleCalendarService;
-  private tokenClient: google.accounts.oauth2.TokenClient | null = null;
+  private tokenClient: any | null = null;
   private accessToken: string | null = null;
   private gapiInited = false;
   private gisInited = false;
@@ -278,7 +278,7 @@ export class GoogleCalendarService {
       },
       end: {
         dateTime: new Date(
-          interview.dateTime.getTime() + interview.duration * 60000
+          interview.dateTime.getTime() + (interview.duration || 60) * 60000
         ).toISOString(),
         timeZone: this.getTimeZone(interview.location),
       },

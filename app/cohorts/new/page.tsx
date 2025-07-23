@@ -168,9 +168,11 @@ export default function NewCohortPage() {
       // Update each selected candidate with class assignment
       for (const candidateId of selectedCandidates) {
         await updateCandidate(candidateId, {
-          "classAssignment.startDate": startDate,
-          "classAssignment.startConfirmed": true,
-        });
+          classAssignment: {
+            startDate: startDate,
+            startConfirmed: true,
+          },
+        } as any);
       }
 
       console.log(

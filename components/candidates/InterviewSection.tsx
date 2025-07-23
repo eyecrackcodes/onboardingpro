@@ -158,8 +158,8 @@ export function InterviewSection({
           {showScheduler ? (
             <InterviewScheduler
               candidate={candidate}
-              onSchedule={handleScheduleInterview}
-              onClose={() => setShowScheduler(false)}
+              onScheduled={handleScheduleInterview}
+              onCancel={() => setShowScheduler(false)}
             />
           ) : (
             <>
@@ -381,13 +381,13 @@ export function InterviewSection({
                         <div className="flex justify-between">
                           <span className="text-gray-600">Technical:</span>
                           <span className="font-medium">
-                            {evaluation.scores.technical}/5
+                            {evaluation.scores.technicalSkills}/5
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Cultural Fit:</span>
                           <span className="font-medium">
-                            {evaluation.scores.culturalFit}/5
+                            {evaluation.scores.cultureFit}/5
                           </span>
                         </div>
                       </div>
