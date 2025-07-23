@@ -157,8 +157,41 @@ export function OnboardingWizard({
         requirements: ["Background check passed", "Candidate is unlicensed"],
         completedAt: candidate.offers.preLicenseOffer.signedAt,
       },
-      // Licensing step only relevant for unlicensed track
-      ...(!isLicensed
+      // Training completion step for unlicensed candidates
+      ...(!isLicensed && preLicenseOfferSigned
+        ? [
+            {
+              id: "training-completion",
+              title: "Complete UNL Training",
+              description: candidate.classAssignment?.trainingCompleted
+                ? "2-week training program completed"
+                : "Complete 2-week unlicensed training program",
+              isComplete: !!candidate.classAssignment?.trainingCompleted,
+              isActive: preLicenseOfferSigned && !candidate.classAssignment?.trainingCompleted,
+              isLocked: !preLicenseOfferSigned,
+              action:
+                preLicenseOfferSigned && !candidate.classAssignment?.trainingCompleted && classAssigned
+                  ? {
+                      label: "Mark Training Complete",
+                      onClick: () => onActionClick("assignment", "training-complete"),
+                    }
+                  : !classAssigned
+                  ? {
+                      label: "Assign to Class",
+                      onClick: () => onActionClick("assignment"),
+                    }
+                  : undefined,
+              requirements: [
+                "Pre-license offer signed",
+                "Assigned to UNL cohort",
+                "Completed 2-week training",
+              ],
+              completedAt: candidate.classAssignment?.trainingCompletedDate,
+            },
+          ]
+        : []),
+      // Licensing step only relevant for unlicensed track after training
+      ...(!isLicensed && candidate.classAssignment?.trainingCompleted
         ? [
             {
               id: "licensing",
@@ -167,19 +200,19 @@ export function OnboardingWizard({
                 "Confirm candidate has passed state exam and obtained license",
               isComplete: isLicensed,
               isActive:
-                preLicenseOfferSigned &&
+                candidate.classAssignment?.trainingCompleted &&
                 !isLicensed &&
                 candidate.licenseStatus === "Unlicensed",
-              isLocked: !preLicenseOfferSigned,
+              isLocked: !candidate.classAssignment?.trainingCompleted,
               action:
-                preLicenseOfferSigned && !isLicensed
+                candidate.classAssignment?.trainingCompleted && !isLicensed
                   ? {
                       label: "Mark Licensed",
                       onClick: () => onActionClick("licensing", "mark"),
                     }
                   : undefined,
               requirements: [
-                "Pre-license offer signed",
+                "Completed UNL training",
                 "State exam scheduled & passed",
               ],
               completedAt: candidate.licensing?.licensePassedAt,

@@ -31,10 +31,15 @@ const templates = [
   },
 ];
 
-function defaultTemplate(candidate: Candidate) {
-  // Use assigned class type if available, otherwise fall back to license status
+interface OfferSenderProps {
+  candidate: Candidate;
+  isFullAgentOffer?: boolean;
+}
+
+function defaultTemplate(candidate: Candidate, isFullAgentOffer?: boolean) {
+  // For full agent offers, always use licensed templates
   const assignedClassType = candidate.classAssignment?.classType;
-  const isLicensedClass =
+  const isLicensedClass = isFullAgentOffer || 
     assignedClassType === "AGENT" ||
     (assignedClassType === undefined && candidate.licenseStatus === "Licensed");
 
@@ -51,6 +56,7 @@ function defaultTemplate(candidate: Candidate) {
     callCenter: candidate.callCenter,
     location: loc,
     isLicensedClass,
+    isFullAgentOffer,
   });
 
   if (loc === "austin") {
@@ -64,13 +70,18 @@ function defaultTemplate(candidate: Candidate) {
   }
 }
 
-export function OfferSender({ candidate }: { candidate: Candidate }) {
-  const [templateId, setTemplateId] = useState(defaultTemplate(candidate));
+export function OfferSender({ candidate, isFullAgentOffer = false }: OfferSenderProps) {
+  const [templateId, setTemplateId] = useState(defaultTemplate(candidate, isFullAgentOffer));
   const [sending, setSending] = useState(false);
 
   // Check I9 status - offer can only be sent after I9 is completed
   const i9Status = (candidate as any).i9Status;
   const isI9Completed = i9Status === "completed";
+
+  // For full agent offers, also check if pre-license training is completed
+  const hasCompletedTraining = candidate.classAssignment?.startDate && 
+    candidate.classAssignment?.preStartCallCompleted &&
+    candidate.classAssignment?.startConfirmed;
 
   // Calculate projected start date using the new cohort dates system
   const projectedStartDate = getProjectedStartDate(candidate);
@@ -85,25 +96,30 @@ export function OfferSender({ candidate }: { candidate: Candidate }) {
       (candidate.licenseStatus === "Licensed" ? "AGENT" : "UNL"),
     projectedStartDate,
     formattedStartDate,
+    isFullAgentOffer,
   });
 
   const handleSend = async () => {
     try {
       setSending(true);
-      console.log("[OfferSender] Starting offer send process...");
+      console.log(`[OfferSender] Starting ${isFullAgentOffer ? 'full agent' : 'pre-license'} offer send process...`);
+
+      // Create a unique document ID for each offer type
+      const offerId = isFullAgentOffer ? `${candidate.id}_full` : candidate.id;
 
       console.log("[OfferSender] Creating Firestore offer document...");
-      await setDoc(doc(db, "offers", candidate.id), {
+      await setDoc(doc(db, "offers", offerId), {
         templateId,
         candidateName: candidate.personalInfo.name,
         candidateEmail: candidate.personalInfo.email,
         projectedStartDate: projectedStartDate,
         formattedStartDate: formattedStartDate,
-        classType:
-          candidate.classAssignment?.classType ||
-          (candidate.licenseStatus === "Licensed" ? "AGENT" : "UNL"),
+        classType: isFullAgentOffer ? "AGENT" : 
+          (candidate.classAssignment?.classType ||
+          (candidate.licenseStatus === "Licensed" ? "AGENT" : "UNL")),
         callCenter: candidate.callCenter,
         licenseStatus: candidate.licenseStatus,
+        offerType: isFullAgentOffer ? "fullAgent" : "preLicense",
         sentAt: serverTimestamp(),
         signed: false,
       });
@@ -121,7 +137,7 @@ export function OfferSender({ candidate }: { candidate: Candidate }) {
       const emailData = {
         to: candidate.personalInfo.email,
         name: candidate.personalInfo.name,
-        link: `${window.location.origin}/offer/${candidate.id}`,
+        link: `${window.location.origin}/offer/${offerId}`,
       };
       console.log("[OfferSender] Calling email API with data:", emailData);
 
@@ -161,7 +177,7 @@ export function OfferSender({ candidate }: { candidate: Candidate }) {
             }` +
             `Check the browser console for the email content.\n\n` +
             `To: ${candidate.personalInfo.email}\n` +
-            `Link: ${window.location.origin}/offer/${candidate.id}\n` +
+            `Link: ${window.location.origin}/offer/${offerId}\n` +
             `Start Date: ${formattedStartDate}`
         );
       } else {

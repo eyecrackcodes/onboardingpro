@@ -10,47 +10,42 @@ interface OfferListenerProps {
 }
 
 export function OfferListener({ candidateId, onUpdate }: OfferListenerProps) {
-  const previousDataRef = useRef<any>(null);
+  // Store the onUpdate function in a ref to avoid recreating the effect
   const onUpdateRef = useRef(onUpdate);
-
-  // Keep the callback reference current
   onUpdateRef.current = onUpdate;
 
-  useEffect(() => {
-    const offerRef = doc(db, "offers", candidateId);
+  // Track previous data to avoid unnecessary updates
+  const previousPreLicenseDataRef = useRef<any>(null);
+  const previousFullAgentDataRef = useRef<any>(null);
 
-    const unsubscribe = onSnapshot(offerRef, (docSnap) => {
+  useEffect(() => {
+    console.log("[OfferListener] Setting up listeners for candidate:", candidateId);
+    
+    // Listen to pre-license offer
+    const preLicenseOfferRef = doc(db, "offers", candidateId);
+    const unsubscribePreLicense = onSnapshot(preLicenseOfferRef, (docSnap) => {
       if (docSnap.exists()) {
         const offerData = docSnap.data();
-
-        // Create the current data structure
-        const currentOfferState = {
-          sent: !!offerData.sentAt,
-          signed: !!offerData.signed,
-          sentAt: offerData.sentAt?.toDate()?.getTime(), // Use timestamp for comparison
-          signedAt: offerData.signedAt?.toDate()?.getTime(),
-        };
-
-        // Check if data has actually changed
-        const previousState = previousDataRef.current;
-        if (
-          previousState &&
-          previousState.sent === currentOfferState.sent &&
-          previousState.signed === currentOfferState.signed &&
-          previousState.sentAt === currentOfferState.sentAt &&
-          previousState.signedAt === currentOfferState.signedAt
-        ) {
-          console.log("[OfferListener] No changes detected, skipping update");
-          return; // No changes, skip update
-        }
-
-        console.log("[OfferListener] Data changed:", {
-          previous: previousState,
-          current: currentOfferState,
+        console.log("[OfferListener] Pre-license offer data received:", {
+          candidateId,
+          signed: offerData.signed,
+          sentAt: offerData.sentAt,
+          signedAt: offerData.signedAt,
         });
 
-        // Store current state for next comparison
-        previousDataRef.current = currentOfferState;
+        // Check if data actually changed
+        const dataStr = JSON.stringify({
+          signed: offerData.signed,
+          sentAt: offerData.sentAt?.toMillis(),
+          signedAt: offerData.signedAt?.toMillis(),
+        });
+
+        if (previousPreLicenseDataRef.current === dataStr) {
+          console.log("[OfferListener] Pre-license data unchanged, skipping update");
+          return;
+        }
+
+        previousPreLicenseDataRef.current = dataStr;
 
         // Map offers collection data to candidate.offers structure
         const updates: Partial<Candidate> = {
@@ -63,8 +58,9 @@ export function OfferListener({ candidateId, onUpdate }: OfferListenerProps) {
                 signedAt: offerData.signedAt.toDate(),
               }),
             },
-            fullAgentOffer: {
-              sent: false, // separate docs for different offer types
+            // Preserve existing full agent offer data
+            fullAgentOffer: previousFullAgentDataRef.current || {
+              sent: false,
               signed: false,
             },
           },
@@ -72,14 +68,73 @@ export function OfferListener({ candidateId, onUpdate }: OfferListenerProps) {
 
         onUpdateRef.current(updates);
       } else {
-        // Document doesn't exist, reset our tracking
-        console.log("[OfferListener] Offer document doesn't exist");
-        previousDataRef.current = null;
+        console.log("[OfferListener] Pre-license offer document doesn't exist");
+        previousPreLicenseDataRef.current = null;
       }
     });
 
-    return () => unsubscribe();
-  }, [candidateId]); // Remove onUpdate from dependencies
+    // Listen to full agent offer
+    const fullAgentOfferRef = doc(db, "offers", `${candidateId}_full`);
+    const unsubscribeFullAgent = onSnapshot(fullAgentOfferRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const offerData = docSnap.data();
+        console.log("[OfferListener] Full agent offer data received:", {
+          candidateId,
+          signed: offerData.signed,
+          sentAt: offerData.sentAt,
+          signedAt: offerData.signedAt,
+        });
+
+        // Check if data actually changed
+        const dataStr = JSON.stringify({
+          signed: offerData.signed,
+          sentAt: offerData.sentAt?.toMillis(),
+          signedAt: offerData.signedAt?.toMillis(),
+        });
+
+        if (previousFullAgentDataRef.current === dataStr) {
+          console.log("[OfferListener] Full agent data unchanged, skipping update");
+          return;
+        }
+
+        previousFullAgentDataRef.current = dataStr;
+
+        // Map offers collection data to candidate.offers structure
+        const updates: Partial<Candidate> = {
+          offers: {
+            // Preserve existing pre-license offer data
+            preLicenseOffer: previousPreLicenseDataRef.current ? {
+              sent: true,
+              signed: true,
+              sentAt: new Date(),
+              signedAt: new Date(),
+            } : {
+              sent: false,
+              signed: false,
+            },
+            fullAgentOffer: {
+              sent: !!offerData.sentAt,
+              signed: !!offerData.signed,
+              ...(offerData.sentAt && { sentAt: offerData.sentAt.toDate() }),
+              ...(offerData.signedAt && {
+                signedAt: offerData.signedAt.toDate(),
+              }),
+            },
+          },
+        };
+
+        onUpdateRef.current(updates);
+      } else {
+        console.log("[OfferListener] Full agent offer document doesn't exist");
+        previousFullAgentDataRef.current = null;
+      }
+    });
+
+    return () => {
+      unsubscribePreLicense();
+      unsubscribeFullAgent();
+    };
+  }, [candidateId]);
 
   return null; // This component only handles side effects
 }

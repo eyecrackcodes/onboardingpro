@@ -435,15 +435,36 @@ export function OffersSection({ candidate, onUpdate }: SectionProps) {
                       </>
                     )}
                   </Button>
+                  
+                  <Button
+                    onClick={() => window.open(`/offer/${candidate.id}`, "_blank")}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View Offer
+                  </Button>
                 </div>
               )}
             </div>
           ) : (
-            <Button
-              onClick={() => onUpdate("offers.fullAgentOffer.sent", true)}
-            >
-              Send Full Agent Offer
-            </Button>
+            <div className="space-y-3">
+              {/* Show requirements for full agent offer */}
+              {!candidate.licenseStatus || candidate.licenseStatus === "Unlicensed" ? (
+                <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  <h4 className="font-medium text-amber-800 mb-1">Requirements Not Met</h4>
+                  <p className="text-sm text-amber-600">
+                    Full agent offers are only available for licensed candidates.
+                  </p>
+                  <ul className="text-sm text-amber-600 mt-2 space-y-1">
+                    <li>• Candidate must obtain license</li>
+                    <li>• License status must be updated to "Licensed"</li>
+                  </ul>
+                </div>
+              ) : (
+                <OfferSender candidate={candidate} isFullAgentOffer={true} />
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
@@ -548,10 +569,12 @@ export function ClassAssignmentSection({ candidate, onUpdate }: SectionProps) {
     backgroundDisclosureCompleted: false,
     badgeReceived: false,
     itRequestCompleted: false,
+    trainingCompleted: false,
+    trainingCompletedDate: undefined as Date | undefined,
+    graduatedToLicensing: false,
     ...baseAssignment,
   };
-
-  // Calculate onboarding completion
+  
   const onboardingTasks = [
     { key: "preStartCallCompleted", label: "Pre-start call completed", completed: assignment.preStartCallCompleted },
     { key: "startConfirmed", label: "Start confirmed", completed: assignment.startConfirmed },
@@ -563,6 +586,11 @@ export function ClassAssignmentSection({ candidate, onUpdate }: SectionProps) {
   const completedTasks = onboardingTasks.filter(task => task.completed).length;
   const totalTasks = onboardingTasks.length;
   const completionPercentage = (completedTasks / totalTasks) * 100;
+
+  // Check if this is an unlicensed candidate in training
+  const isUnlicensedTraining = candidate.licenseStatus === "Unlicensed" && 
+    assignment.classType === "UNL" && 
+    assignment.startDate;
 
   return (
     <Card>
@@ -589,6 +617,65 @@ export function ClassAssignmentSection({ candidate, onUpdate }: SectionProps) {
           </div>
         )}
 
+        {/* Training Completion for Unlicensed Candidates */}
+        {isUnlicensedTraining && (
+          <Card className="border-purple-200 bg-purple-50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base text-purple-900">UNL Training Status</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {assignment.trainingCompleted ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-green-700">
+                    <CheckCircle2 className="h-5 w-5" />
+                    <span className="font-medium">Training Completed!</span>
+                  </div>
+                  {assignment.trainingCompletedDate && (
+                    <p className="text-sm text-gray-600">
+                      Completed on {formatDate(assignment.trainingCompletedDate)}
+                    </p>
+                  )}
+                  <p className="text-sm text-purple-700">
+                    Candidate is now ready to take the state licensing exam.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-purple-700">
+                    Candidate is currently in the 2-week UNL training program.
+                  </p>
+                  {assignment.startDate && (
+                    <p className="text-sm text-gray-600">
+                      Expected completion: {formatDate(
+                        new Date(new Date(assignment.startDate).getTime() + 14 * 24 * 60 * 60 * 1000)
+                      )}
+                    </p>
+                  )}
+                  <div className="flex items-center space-x-2 pt-2">
+                    <Checkbox
+                      id="trainingCompleted"
+                      checked={assignment.trainingCompleted || false}
+                      onCheckedChange={(checked) => {
+                        onUpdate("classAssignment.trainingCompleted", checked);
+                        if (checked) {
+                          onUpdate("classAssignment.trainingCompletedDate", new Date());
+                          onUpdate("classAssignment.graduatedToLicensing", true);
+                        } else {
+                          onUpdate("classAssignment.trainingCompletedDate", undefined);
+                          onUpdate("classAssignment.graduatedToLicensing", false);
+                        }
+                      }}
+                    />
+                    <Label htmlFor="trainingCompleted" className="font-medium">
+                      Mark 2-week training as completed
+                    </Label>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+        
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label>Class Type</Label>
