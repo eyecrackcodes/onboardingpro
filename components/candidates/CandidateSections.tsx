@@ -50,6 +50,7 @@ import { InterviewEvaluationForm } from "./InterviewEvaluationForm";
 import { OfferSender } from "./OfferSender";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { cn } from "@/lib/utils";
 
 interface SectionProps {
   candidate: Candidate;
@@ -544,16 +545,50 @@ export function ClassAssignmentSection({ candidate, onUpdate }: SectionProps) {
     startDate: undefined as Date | undefined,
     preStartCallCompleted: false,
     startConfirmed: false,
-    sysOnboarding: false,
+    backgroundDisclosureCompleted: false,
+    badgeReceived: false,
+    itRequestCompleted: false,
     ...baseAssignment,
   };
+
+  // Calculate onboarding completion
+  const onboardingTasks = [
+    { key: "preStartCallCompleted", label: "Pre-start call completed", completed: assignment.preStartCallCompleted },
+    { key: "startConfirmed", label: "Start confirmed", completed: assignment.startConfirmed },
+    { key: "backgroundDisclosureCompleted", label: "Background disclosure completed", completed: assignment.backgroundDisclosureCompleted },
+    { key: "badgeReceived", label: "Badge received", completed: assignment.badgeReceived },
+    { key: "itRequestCompleted", label: "IT request completed", completed: assignment.itRequestCompleted },
+  ];
+  
+  const completedTasks = onboardingTasks.filter(task => task.completed).length;
+  const totalTasks = onboardingTasks.length;
+  const completionPercentage = (completedTasks / totalTasks) * 100;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Class Assignment</CardTitle>
+        <CardTitle>Class Assignment & Onboarding</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Progress Overview */}
+        {assignment.startDate && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium text-blue-900">Onboarding Progress</h4>
+              <span className="text-sm font-medium text-blue-700">
+                {completedTasks}/{totalTasks} completed
+              </span>
+            </div>
+            <Progress value={completionPercentage} className="h-2" />
+            {completionPercentage === 100 && (
+              <div className="flex items-center gap-2 text-green-700">
+                <CheckCircle2 className="h-4 w-4" />
+                <span className="text-sm font-medium">All onboarding tasks complete!</span>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label>Class Type</Label>
@@ -594,60 +629,52 @@ export function ClassAssignmentSection({ candidate, onUpdate }: SectionProps) {
           </div>
         </div>
 
-        <div className="space-y-3">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="preStartCall"
-              checked={assignment.preStartCallCompleted}
-              onCheckedChange={(checked) =>
-                onUpdate("classAssignment.preStartCallCompleted", checked)
-              }
-            />
-            <Label htmlFor="preStartCall">Pre-start call completed</Label>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="startConfirmed"
-              checked={assignment.startConfirmed}
-              onCheckedChange={(checked) =>
-                onUpdate("classAssignment.startConfirmed", checked)
-              }
-            />
-            <Label htmlFor="startConfirmed">Start confirmed</Label>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="sysOnboarding"
-              checked={assignment.sysOnboarding}
-              onCheckedChange={(checked) =>
-                onUpdate("classAssignment.sysOnboarding", checked)
-              }
-            />
-            <Label htmlFor="sysOnboarding">Systems onboarding complete</Label>
-          </div>
-
-          {assignment.startDate && assignment.startConfirmed && (
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <div className="flex items-center gap-2 text-blue-800">
-                <Calendar className="h-5 w-5" />
-                <span className="font-medium">Class Assignment Confirmed</span>
+        {/* Onboarding Checklist */}
+        <div className="space-y-2">
+          <h4 className="font-medium text-gray-700 mb-3">Onboarding Checklist</h4>
+          <div className="space-y-3 pl-2">
+            {onboardingTasks.map((task) => (
+              <div key={task.key} className="flex items-center space-x-2">
+                <Checkbox
+                  id={task.key}
+                  checked={task.completed}
+                  onCheckedChange={(checked) =>
+                    onUpdate(`classAssignment.${task.key}`, checked)
+                  }
+                />
+                <Label 
+                  htmlFor={task.key} 
+                  className={cn(
+                    "cursor-pointer",
+                    task.completed && "text-gray-500 line-through"
+                  )}
+                >
+                  {task.label}
+                </Label>
               </div>
-              <div className="text-sm text-blue-600 mt-1">
-                Starts {formatDate(assignment.startDate)}
-              </div>
+            ))}
+          </div>
+        </div>
+
+        {assignment.startDate && assignment.startConfirmed && (
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <div className="flex items-center gap-2 text-blue-800">
+              <Calendar className="h-5 w-5" />
+              <span className="font-medium">Class Assignment Confirmed</span>
             </div>
-          )}
-
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="readyToGo"
-              checked={candidate.readyToGo}
-              onCheckedChange={(checked) => onUpdate("readyToGo", checked)}
-            />
-            <Label htmlFor="readyToGo">All onboarding tasks complete</Label>
+            <div className="text-sm text-blue-600 mt-1">
+              Starts {formatDate(assignment.startDate)}
+            </div>
           </div>
+        )}
+
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="readyToGo"
+            checked={candidate.readyToGo}
+            onCheckedChange={(checked) => onUpdate("readyToGo", checked)}
+          />
+          <Label htmlFor="readyToGo">All onboarding tasks complete</Label>
         </div>
       </CardContent>
     </Card>
