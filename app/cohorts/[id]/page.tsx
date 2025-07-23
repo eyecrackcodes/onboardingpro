@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -68,12 +68,7 @@ export default function CohortDetailPage() {
     status: "Active" as "Active" | "Completed" | "On Hold",
   });
 
-  useEffect(() => {
-    if (!cohortId) return;
-    fetchData();
-  }, [cohortId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       // Fetch cohort data
       const cohortData = await getCohort(cohortId);
@@ -144,7 +139,12 @@ export default function CohortDetailPage() {
       alert("Failed to load cohort data");
       setLoading(false);
     }
-  };
+  }, [cohortId, router]);
+
+  useEffect(() => {
+    if (!cohortId) return;
+    fetchData();
+  }, [cohortId, fetchData]);
 
   const handleSave = async () => {
     if (!cohort) return;

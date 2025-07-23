@@ -458,7 +458,7 @@ export function OffersSection({ candidate, onUpdate }: SectionProps) {
                   </p>
                   <ul className="text-sm text-amber-600 mt-2 space-y-1">
                     <li>• Candidate must obtain license</li>
-                    <li>• License status must be updated to "Licensed"</li>
+                    <li>• License status must be updated to &quot;Licensed&quot;</li>
                   </ul>
                 </div>
               ) : (
