@@ -383,7 +383,7 @@ export default function AdminPage() {
               <h3 className="font-medium">Create Austin Houser Trainer</h3>
               <p className="text-sm text-gray-600">
                 Creates Austin Houser as a trainer for Austin (ATX) location if
-                he doesn't exist
+                he doesn&apos;t exist
               </p>
             </div>
             <Button
@@ -413,7 +413,7 @@ export default function AdminPage() {
                 Delete Test Candidates
               </h3>
               <p className="text-sm text-red-600">
-                Removes all candidates with "Test Candidate" in their name and
+                Removes all candidates with &quot;Test Candidate&quot; in their name and
                 associated data
               </p>
               <div className="flex items-center gap-2 mt-1">
@@ -499,8 +499,8 @@ export default function AdminPage() {
                 Fix Austin Houser Call Center
               </h3>
               <p className="text-sm text-green-600">
-                Forces Austin Houser's call center to "ATX" if it's not already.
-                This is often needed to ensure he's included in ATX cohort
+                Forces Austin Houser&apos;s call center to &quot;ATX&quot; if it&apos;s not already.
+                This is often needed to ensure he&apos;s included in ATX cohort
                 creation.
               </p>
               <div className="flex items-center gap-2 mt-1">
@@ -629,7 +629,7 @@ export default function AdminPage() {
           <div className="p-3 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-600">
               <strong>Note:</strong> The system automatically selects the next
-              available start date based on the candidate's class type (AGENT
+              available start date based on the candidate&apos;s class type (AGENT
               for licensed, UNL for unlicensed).
             </p>
           </div>

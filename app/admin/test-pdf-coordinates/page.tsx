@@ -195,7 +195,7 @@ export default function TestPDFCoordinatesPage() {
             {/* Candidate Name Position */}
             <div>
               <h3 className="font-medium mb-3">
-                Candidate Name Position ("Dear ____")
+                Candidate Name Position (&quot;Dear ____&quot;)
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -264,7 +264,7 @@ export default function TestPDFCoordinatesPage() {
             {/* Start Date Position */}
             <div>
               <h3 className="font-medium mb-3">
-                Start Date Position ("8:00AM CST on ____")
+                Start Date Position (&quot;8:00AM CST on ____&quot;)
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>

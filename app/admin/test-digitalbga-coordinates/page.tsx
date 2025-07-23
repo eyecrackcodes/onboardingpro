@@ -63,7 +63,7 @@ Tips for adjustment:
         <CardContent className="space-y-6">
           {/* Name Position */}
           <div className="space-y-4 p-4 bg-blue-50 rounded-lg">
-            <h3 className="font-medium text-blue-900">Name Position (After "Dear")</h3>
+            <h3 className="font-medium text-blue-900">Name Position (After &quot;Dear&quot;)</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="nameX">X Position</Label>
@@ -177,7 +177,7 @@ Tips for adjustment:
             <h4 className="font-medium text-yellow-900 mb-2">Instructions:</h4>
             <ol className="text-sm text-yellow-800 space-y-1 list-decimal list-inside">
               <li>Adjust the coordinates using the input fields above</li>
-              <li>Click "Generate Coordinate Summary" to see current values</li>
+              <li>Click &quot;Generate Coordinate Summary&quot; to see current values</li>
               <li>Update the values in app/offer/[id]/page.tsx with the final coordinates</li>
               <li>Test with an actual offer to verify placement</li>
             </ol>
