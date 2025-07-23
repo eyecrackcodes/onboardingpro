@@ -1,0 +1,18 @@
+rules_version = '2';
+
+// Craft rules based on data in your Firestore database
+// allow write: if firestore.get(
+//    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow authenticated users to upload and read files
+    match /{allPaths=**} {
+      allow read, write: if true; // For development - allow all access
+    }
+    
+    // More specific rule for signed offers
+    match /signed-offers/{fileName} {
+      allow read, write: if true; // For development
+    }
+  }
+} 
