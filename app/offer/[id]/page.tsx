@@ -10,7 +10,7 @@ import SignatureCanvas from "react-signature-canvas";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { use } from "react";
 
-export default function OfferSignPage({ params }: { params: { id: string } }) {
+export default function OfferSignPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [loading, setLoading] = useState(true);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
