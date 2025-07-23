@@ -437,7 +437,7 @@ export function OffersSection({ candidate, onUpdate }: SectionProps) {
                   </Button>
                   
                   <Button
-                    onClick={() => window.open(`/offer/${candidate.id}`, "_blank")}
+                    onClick={() => window.open(`/offer/${candidate.id}_full`, "_blank")}
                     variant="outline"
                     size="sm"
                   >
@@ -449,21 +449,35 @@ export function OffersSection({ candidate, onUpdate }: SectionProps) {
             </div>
           ) : (
             <div className="space-y-3">
-              {/* Show requirements for full agent offer */}
-              {!candidate.licenseStatus || candidate.licenseStatus === "Unlicensed" ? (
-                <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
-                  <h4 className="font-medium text-amber-800 mb-1">Requirements Not Met</h4>
-                  <p className="text-sm text-amber-600">
-                    Full agent offers are only available for licensed candidates.
-                  </p>
-                  <ul className="text-sm text-amber-600 mt-2 space-y-1">
-                    <li>• Candidate must obtain license</li>
-                    <li>• License status must be updated to &quot;Licensed&quot;</li>
-                  </ul>
-                </div>
-              ) : (
-                <OfferSender candidate={candidate} isFullAgentOffer={true} />
-              )}
+              {/* Manual Full Agent Offer Sending */}
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 className="font-medium text-blue-800 mb-1">Full Agent Offer</h4>
+                <p className="text-sm text-blue-600 mb-3">
+                  Send full agent offer manually for candidates who have passed their licensing exam or are already licensed.
+                </p>
+                <p className="text-xs text-blue-500 mb-3">
+                  <strong>Note:</strong> This offer should only be sent after the candidate has obtained their license and passed their exam.
+                </p>
+                
+                {candidate.licenseStatus === "Licensed" ? (
+                  <div className="space-y-2">
+                    <div className="text-sm text-green-700 mb-2">
+                      ✓ Candidate is licensed and eligible for full agent offer
+                    </div>
+                    <OfferSender candidate={candidate} isFullAgentOffer={true} />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="text-sm text-amber-700 mb-2">
+                      ⚠️ Candidate license status: {candidate.licenseStatus}
+                    </div>
+                    <div className="text-xs text-gray-600 mb-2">
+                      You can still send the offer manually, but consider updating license status first.
+                    </div>
+                    <OfferSender candidate={candidate} isFullAgentOffer={true} />
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </CardContent>

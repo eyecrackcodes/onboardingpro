@@ -117,6 +117,7 @@ export default function CohortDetailPage() {
         
         // Must match the class type
         if (cohortData.classType === "UNL") {
+          // For unlicensed classes: require pre-license offer signed
           return (
             c.licenseStatus === "Unlicensed" &&
             c.backgroundCheck.status === "Completed" &&
@@ -124,9 +125,10 @@ export default function CohortDetailPage() {
             (!c.classAssignment.startDate || !c.classAssignment.startConfirmed)
           );
         } else {
+          // For licensed classes: only require license status, no offer requirement
           return (
             c.licenseStatus === "Licensed" &&
-            c.offers.fullAgentOffer.signed &&
+            c.backgroundCheck.status === "Completed" &&
             (!c.classAssignment.startDate || !c.classAssignment.startConfirmed)
           );
         }
@@ -184,18 +186,28 @@ export default function CohortDetailPage() {
     if (!cohort) return;
     
     try {
+      // First get the current candidate data
+      const allCandidates = await getCandidates();
+      const candidate = allCandidates.find(c => c.id === candidateId);
+      
+      if (!candidate) {
+        alert("Candidate not found");
+        return;
+      }
+      
       // Update cohort participants
       await updateCohort(cohortId, {
         participants: [...cohort.participants, candidateId],
       });
       
-      // Update candidate's class assignment
+      // Update candidate's class assignment - preserve existing properties
       await updateCandidate(candidateId, {
         classAssignment: {
+          ...candidate.classAssignment, // Preserve existing properties
           startDate: cohort.startDate,
           startConfirmed: true,
           classType: cohort.classType,
-        } as any,
+        },
       });
       
       alert("Participant added successfully");
@@ -215,17 +227,27 @@ export default function CohortDetailPage() {
     if (!confirmed) return;
     
     try {
+      // First get the current candidate data
+      const allCandidates = await getCandidates();
+      const candidate = allCandidates.find(c => c.id === candidateId);
+      
+      if (!candidate) {
+        alert("Candidate not found");
+        return;
+      }
+      
       // Update cohort participants
       await updateCohort(cohortId, {
         participants: cohort.participants.filter(id => id !== candidateId),
       });
       
-      // Clear candidate's class assignment
+      // Clear candidate's class assignment - preserve other properties
       await updateCandidate(candidateId, {
         classAssignment: {
+          ...candidate.classAssignment, // Preserve existing properties
           startDate: undefined,
           startConfirmed: false,
-        } as any,
+        },
       });
       
       alert("Participant removed successfully");

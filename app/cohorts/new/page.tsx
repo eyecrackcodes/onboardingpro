@@ -72,6 +72,7 @@ export default function NewCohortPage() {
           c.classAssignment?.classType === formData.classType;
 
         if (formData.classType === "UNL") {
+          // For unlicensed classes: require pre-license offer signed
           return (
             hasMatchingClassType &&
             c.licenseStatus === "Unlicensed" &&
@@ -80,10 +81,11 @@ export default function NewCohortPage() {
             !c.classAssignment.startDate // Not already assigned to a specific date
           );
         } else {
+          // For licensed classes: only require license status, no offer requirement
           return (
             hasMatchingClassType &&
             c.licenseStatus === "Licensed" &&
-            c.offers.fullAgentOffer.signed &&
+            c.backgroundCheck.status === "Completed" &&
             !c.classAssignment.startDate // Not already assigned to a specific date
           );
         }
