@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   Calendar,
   FileText,
+  Shield,
 } from "lucide-react";
 import {
   createAustinHouserTrainer,
@@ -539,6 +540,20 @@ export default function AdminPage() {
               </Button>
             </Link>
 
+            <Link href="/admin/documents">
+              <Button variant="outline" className="w-full justify-start">
+                <FileText className="h-4 w-4 mr-2" />
+                Signed Documents
+              </Button>
+            </Link>
+
+            <Link href="/admin/ssn-viewer">
+              <Button variant="destructive" className="w-full justify-start">
+                <Shield className="h-4 w-4 mr-2" />
+                SSN Viewer (Restricted)
+              </Button>
+            </Link>
+
             <Link href="/admin/debug-env">
               <Button variant="outline" className="w-full justify-start">
                 <AlertTriangle className="h-4 w-4 mr-2" />
@@ -557,6 +572,13 @@ export default function AdminPage() {
               <Button variant="outline" className="w-full justify-start">
                 <FileText className="h-4 w-4 mr-2" />
                 PDF Coordinate Tester
+              </Button>
+            </Link>
+
+            <Link href="/admin/test-digitalbga-coordinates">
+              <Button variant="outline" className="w-full justify-start">
+                <FileText className="h-4 w-4 mr-2" />
+                DigitalBGA Coordinate Tester
               </Button>
             </Link>
           </div>

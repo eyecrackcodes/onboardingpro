@@ -45,6 +45,11 @@ export function BackgroundCheckWithIBR({
 
   // Pre-fill with test data in development mode
   const isDevMode = process.env.NODE_ENV === "development";
+  
+  // Check if I9 data is available
+  const i9Data = (candidate as any).i9Data;
+  const hasI9Data = i9Data && (candidate as any).i9Status === "completed";
+  
   const [additionalInfo, setAdditionalInfo] = useState({
     firstName: "",
     middleName: "",
@@ -59,9 +64,25 @@ export function BackgroundCheckWithIBR({
     gender: "" as "M" | "F" | "",
   });
 
-  // Parse candidate name on mount
+  // Parse candidate name on mount OR use I9 data if available
   useEffect(() => {
-    if (candidate.personalInfo.name) {
+    if (hasI9Data) {
+      // Use I9 data to populate the form
+      setAdditionalInfo({
+        firstName: i9Data.legalName?.firstName || "",
+        middleName: i9Data.legalName?.middleName || "",
+        lastName: i9Data.legalName?.lastName || "",
+        ssn: i9Data.socialSecurityNumber || (isDevMode ? "555123456" : ""),
+        address: i9Data.currentAddress?.street || (isDevMode ? "123 Test Street" : ""),
+        city: i9Data.currentAddress?.city || (isDevMode ? "Tampa" : ""),
+        state: i9Data.currentAddress?.state || (isDevMode ? "FL" : ""),
+        zipcode: i9Data.currentAddress?.zipCode || (isDevMode ? "33601" : ""),
+        county: isDevMode ? "Hillsborough" : "",
+        dob: i9Data.dateOfBirth || (isDevMode ? "1990-01-01" : ""),
+        gender: "" as "M" | "F" | "",
+      });
+    } else if (candidate.personalInfo.name) {
+      // Fall back to parsing the name
       const nameParts = candidate.personalInfo.name.trim().split(/\s+/);
       if (nameParts.length === 1) {
         setAdditionalInfo((prev) => ({
@@ -84,7 +105,7 @@ export function BackgroundCheckWithIBR({
         }));
       }
     }
-  }, [candidate.personalInfo.name]);
+  }, [candidate.personalInfo.name, hasI9Data, i9Data]);
 
   const bgCheck = candidate.backgroundCheck;
   const interviewPassed =
@@ -592,6 +613,19 @@ export function BackgroundCheckWithIBR({
 
           {!bgCheck.initiated && !bgCheck.ibrId ? (
             <div className="space-y-4">
+              {/* Show when I9 data is being used */}
+              {hasI9Data && (
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-4">
+                  <div className="flex items-center gap-2 text-blue-800">
+                    <CheckCircle className="h-4 w-4" />
+                    <span className="text-sm font-medium">Using I-9 Form Data</span>
+                  </div>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Information has been pre-filled from the completed I-9 form. Please verify and add any missing details.
+                  </p>
+                </div>
+              )}
+              
               {/* Additional Information Form */}
               <div className="grid gap-4 md:grid-cols-3 mb-4">
                 <div className="space-y-2">

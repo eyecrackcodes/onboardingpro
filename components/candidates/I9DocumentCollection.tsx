@@ -846,7 +846,7 @@ export function I9DocumentCollection({
                         ...prev,
                         documentVerification: {
                           ...prev.documentVerification,
-                          listADocument: value
+                          listADocument: value && value !== "none"
                             ? { type: value, number: "", expirationDate: "" }
                             : null,
                         },
@@ -857,7 +857,7 @@ export function I9DocumentCollection({
                       <SelectValue placeholder="Select List A document (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {LIST_A_DOCUMENTS.map((doc) => (
                         <SelectItem key={doc} value={doc}>
                           {doc}

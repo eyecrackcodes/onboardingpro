@@ -284,8 +284,8 @@ export default function CandidateDetailPage() {
         <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="interview">Interview</TabsTrigger>
-          <TabsTrigger value="background">Background</TabsTrigger>
           <TabsTrigger value="i9">I-9 Form</TabsTrigger>
+          <TabsTrigger value="background">Background</TabsTrigger>
           <TabsTrigger value="offers">Offers</TabsTrigger>
           <TabsTrigger value="licensing">Licensing</TabsTrigger>
           <TabsTrigger value="assignment">Assignment</TabsTrigger>
