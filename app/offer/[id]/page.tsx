@@ -4,12 +4,13 @@ import { useState, useEffect } from "react";
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import SignatureCanvas from "react-signature-canvas";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { use } from "react";
 
-export default function OfferSignPage({ params }: { params: { id: string } }) {
+export default function OfferSignPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [loading, setLoading] = useState(true);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -152,32 +153,31 @@ export default function OfferSignPage({ params }: { params: { id: string } }) {
       const { width, height } = firstPage.getSize();
       console.log("PDF dimensions:", { width, height });
 
-      // More precise positioning for different templates
-      let nameX = 425; // Default for "Dear ____" field
-      let nameY = height - 430; // Default Y position
-      let dateX = 540; // Default for start date field
-      let dateY = height - 508; // Default Y position
+      // More precise positioning based on DigitalBGA template
+      // Standard letter size is 612 x 792 points
+      let nameX = 60; // After "Dear " on line 3
+      let nameY = height - 145; // Line 3 position (~145 points from top)
+      let dateX = 260; // After "8:00AM CST on " - adjusted right
+      let dateY = height - 240; // Move up to align with the sentence
+      
+      // Signature section coordinates (bottom of page)
+      let signatureX = 90; // Left side "Accepted By:" field - moved right
+      let signatureY = 95; // Bottom of page - slightly lower
+      let signatureDateX = 340; // Right side "Date" field - moved right
+      let signatureDateY = 95; // Same height as signature
 
-      // Adjust coordinates based on template type
+      // Adjust coordinates based on template type if needed
       if (templateId.includes("Austin")) {
-        // Austin template adjustments
-        nameX = 425;
-        nameY = height - 430;
-        dateX = 540;
-        dateY = height - 508;
+        // Austin template uses standard positioning
+        // No adjustments needed
       } else if (templateId.includes("Charlotte")) {
-        // Charlotte template might have different positioning
-        nameX = 425;
-        nameY = height - 430;
-        dateX = 540;
-        dateY = height - 508;
+        // Charlotte template might have slightly different positioning
+        // No adjustments needed for now
       }
 
       // For UNLICENSED templates, text might be positioned differently
       if (templateId.includes("UNLICENSED")) {
-        // Slight adjustments for unlicensed templates
-        nameY = height - 435; // Slightly lower
-        dateY = height - 513; // Slightly lower
+        // Use same positioning for consistency
       }
 
       console.log("Calculated text positions:", {
@@ -195,8 +195,17 @@ export default function OfferSignPage({ params }: { params: { id: string } }) {
         color: rgb(0, 0, 0),
       });
 
-      // Add projected start date to the start time field
-      firstPage.drawText(projectedStartDate, {
+      // Add projected start date to the start time field (format as MM/DD/YYYY)
+      // Convert the formatted date to MM/DD/YYYY format
+      const dateForPDF = projectedStartDate.includes(',') 
+        ? new Date(projectedStartDate).toLocaleDateString('en-US', {
+            month: '2-digit',
+            day: '2-digit',
+            year: 'numeric'
+          })
+        : projectedStartDate; // Keep as-is if already in correct format
+        
+      firstPage.drawText(dateForPDF, {
         x: dateX,
         y: dateY,
         size: 11,
@@ -218,15 +227,40 @@ export default function OfferSignPage({ params }: { params: { id: string } }) {
       const signatureDataUrl = canvas.toDataURL();
       const signatureImage = await pdfDoc.embedPng(signatureDataUrl);
 
-      // Position signature (adjust coordinates as needed)
+      // Add candidate's typed name inline with signature
+      firstPage.drawText(candidateName, {
+        x: signatureX,
+        y: signatureY + 15, // Move up to be more visible
+        size: 12,
+        font: font,
+        color: rgb(0, 0, 0),
+      });
+      
+      // Position signature image to the right of the typed name
+      const nameWidth = font.widthOfTextAtSize(candidateName, 12);
       firstPage.drawImage(signatureImage, {
-        x: 100,
-        y: 100,
-        width: 200,
-        height: 60,
+        x: signatureX + nameWidth + 10, // Position to the right of name
+        y: signatureY, // Same line as the field
+        width: 120,
+        height: 30,
       });
 
-      console.log("PDF with signature created");
+      // Add current date/timestamp in the "Date" field (right side, bottom)
+      const currentDate = new Date().toLocaleDateString("en-US", {
+        month: "2-digit",
+        day: "2-digit",
+        year: "numeric",
+      });
+      
+      firstPage.drawText(currentDate, {
+        x: signatureDateX,
+        y: signatureDateY + 5, // Align with typed name
+        size: 11,
+        font: font,
+        color: rgb(0, 0, 0),
+      });
+
+      console.log("PDF with signature and date created");
 
       // Get the modified PDF as bytes
       const signedPdfBytes = await pdfDoc.save();
@@ -261,13 +295,14 @@ export default function OfferSignPage({ params }: { params: { id: string } }) {
       console.log("Server API response:", result);
 
       console.log("Offer signed successfully!");
-      if (result.mode === "firestore_fallback") {
-        alert(
-          "Offer signed successfully! (Saved to database - file storage temporarily unavailable)"
-        );
-      } else {
-        alert("Offer signed successfully. Thank you!");
-      }
+      
+      // Update local state to show signed status
+      setSigned(true);
+      
+      // Reload the page to show the thank you message
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     } catch (e) {
       console.error("Error signing offer:", e);
       alert("Failed to sign offer. Please try again.");
@@ -286,17 +321,37 @@ export default function OfferSignPage({ params }: { params: { id: string } }) {
 
   if (signed) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Offer Already Signed</h1>
-          <p>Thank you, {candidateName}! Your offer has been completed.</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-8 pb-8 text-center">
+            <div className="mb-6">
+              <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+            </div>
+            <h1 className="text-2xl font-bold mb-4 text-gray-900">Thank You!</h1>
+            <p className="text-gray-600 mb-6">
+              {candidateName}, your offer letter has been successfully signed and submitted.
+            </p>
+            <div className="bg-blue-50 rounded-lg p-4 mb-6">
+              <p className="text-sm text-blue-800">
+                <strong>What&apos;s Next?</strong><br />
+                Our HR team will be in contact with you shortly regarding your start date and next steps.
+              </p>
+            </div>
+            <p className="text-xs text-gray-500">
+              You may close this window. A copy of your signed offer will be sent to your email.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="p-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">Employment Offer Letter</h1>
 

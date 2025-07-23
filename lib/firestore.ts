@@ -484,7 +484,9 @@ export const createAustinHouserTrainer = async () => {
     return docRef.id;
   } catch (error) {
     console.error("Error creating Austin Houser trainer:", error);
-    console.error("Error stack:", error.stack);
+    if (error instanceof Error) {
+      console.error("Error stack:", error.stack);
+    }
     throw error;
   }
 };

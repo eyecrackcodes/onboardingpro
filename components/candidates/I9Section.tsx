@@ -45,12 +45,12 @@ export function I9Section({ candidate, onUpdate }: I9SectionProps) {
     try {
       console.log("[I9Section] Saving I9 data for candidate:", candidate.id);
 
-      // Update candidate with I9 data
+      // Update candidate with I9 data using dot notation
       await updateCandidate(candidate.id, {
-        i9Data: i9FormData,
-        i9CompletedAt: new Date(),
-        i9Status: "completed",
-      });
+        ["i9Data"]: i9FormData,
+        ["i9CompletedAt"]: new Date(),
+        ["i9Status"]: "completed",
+      } as any);
 
       // Update local state
       onUpdate("i9Data", i9FormData);
@@ -76,9 +76,9 @@ export function I9Section({ candidate, onUpdate }: I9SectionProps) {
 
       // Save progress
       await updateCandidate(candidate.id, {
-        i9Data: i9FormData,
-        i9Status: "in_progress",
-      });
+        ["i9Data"]: i9FormData,
+        ["i9Status"]: "in_progress",
+      } as any);
 
       // Update local state
       onUpdate("i9Data", i9FormData);

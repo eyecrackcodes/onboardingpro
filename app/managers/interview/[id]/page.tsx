@@ -78,8 +78,7 @@ export default function InterviewPage() {
     if (fieldParts[0] === "interview") {
       const updatedInterview = { ...candidate.interview };
       if (fieldParts.length === 2) {
-        updatedInterview[fieldParts[1] as keyof typeof updatedInterview] =
-          value;
+        (updatedInterview as any)[fieldParts[1]] = value;
       }
       updates.interview = updatedInterview;
     } else {

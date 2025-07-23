@@ -216,7 +216,7 @@ export default function I9CompletionPage() {
                 <ul className="text-sm text-blue-700 text-left space-y-1">
                   <li>• HR will review your I-9 information</li>
                   <li>• Background check process will begin</li>
-                  <li>• You'll receive your employment offer letter soon</li>
+                  <li>• You&apos;ll receive your employment offer letter soon</li>
                   <li>
                     • Keep this reference ID for your records:{" "}
                     <code className="bg-blue-100 px-1 rounded">
@@ -240,7 +240,7 @@ export default function I9CompletionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="py-8">
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
         <Card className="mb-6">
@@ -279,7 +279,7 @@ export default function I9CompletionPage() {
                   eligibility to work in the United States
                 </li>
                 <li>• All information must be accurate and complete</li>
-                <li>• You'll need identity and work authorization documents</li>
+                <li>• You&apos;ll need identity and work authorization documents</li>
                 <li>• Your information is encrypted and secure</li>
                 <li>
                   • Position: {i9Form.licenseStatus} Agent at{" "}

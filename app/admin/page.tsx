@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   Calendar,
   FileText,
+  Shield,
 } from "lucide-react";
 import {
   createAustinHouserTrainer,
@@ -24,6 +25,7 @@ import {
   collection,
   getDocs,
   deleteDoc,
+  doc,
   query,
   where,
 } from "firebase/firestore";
@@ -83,7 +85,9 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.error("Error creating trainer:", error);
-      setResult(`❌ Error creating trainer: ${error}\n\nStack: ${error.stack}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : '';
+      setResult(`❌ Error creating trainer: ${errorMessage}${errorStack ? `\n\nStack: ${errorStack}` : ''}`);
     } finally {
       setCreating(false);
     }
@@ -180,7 +184,7 @@ export default function AdminPage() {
       const allNotifications = notificationsSnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      }));
+      })) as Array<{ id: string; candidateId?: string; [key: string]: any }>;
 
       // Find orphaned notifications
       const orphanedNotifications = allNotifications.filter(
@@ -262,7 +266,7 @@ export default function AdminPage() {
       const rawTrainers = trainersSnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      }));
+      })) as Array<{ id: string; name?: string; callCenter?: string; type?: string; isActive?: boolean; [key: string]: any }>;
 
       setResult(
         `🔍 Trainer Debug Results:\n\n` +
@@ -314,8 +318,10 @@ export default function AdminPage() {
       );
     } catch (error) {
       console.error("Error debugging trainers:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : '';
       setResult(
-        `❌ Error debugging trainers: ${error}\n\nStack: ${error.stack}`
+        `❌ Error debugging trainers: ${errorMessage}${errorStack ? `\n\nStack: ${errorStack}` : ''}`
       );
     } finally {
       setDebugging(false);
@@ -382,7 +388,7 @@ export default function AdminPage() {
               <h3 className="font-medium">Create Austin Houser Trainer</h3>
               <p className="text-sm text-gray-600">
                 Creates Austin Houser as a trainer for Austin (ATX) location if
-                he doesn't exist
+                he doesn&apos;t exist
               </p>
             </div>
             <Button
@@ -412,7 +418,7 @@ export default function AdminPage() {
                 Delete Test Candidates
               </h3>
               <p className="text-sm text-red-600">
-                Removes all candidates with "Test Candidate" in their name and
+                Removes all candidates with &quot;Test Candidate&quot; in their name and
                 associated data
               </p>
               <div className="flex items-center gap-2 mt-1">
@@ -498,8 +504,8 @@ export default function AdminPage() {
                 Fix Austin Houser Call Center
               </h3>
               <p className="text-sm text-green-600">
-                Forces Austin Houser's call center to "ATX" if it's not already.
-                This is often needed to ensure he's included in ATX cohort
+                Forces Austin Houser&apos;s call center to &quot;ATX&quot; if it&apos;s not already.
+                This is often needed to ensure he&apos;s included in ATX cohort
                 creation.
               </p>
               <div className="flex items-center gap-2 mt-1">
@@ -539,6 +545,20 @@ export default function AdminPage() {
               </Button>
             </Link>
 
+            <Link href="/admin/documents">
+              <Button variant="outline" className="w-full justify-start">
+                <FileText className="h-4 w-4 mr-2" />
+                Signed Documents
+              </Button>
+            </Link>
+
+            <Link href="/admin/ssn-viewer">
+              <Button variant="destructive" className="w-full justify-start">
+                <Shield className="h-4 w-4 mr-2" />
+                SSN Viewer (Restricted)
+              </Button>
+            </Link>
+
             <Link href="/admin/debug-env">
               <Button variant="outline" className="w-full justify-start">
                 <AlertTriangle className="h-4 w-4 mr-2" />
@@ -557,6 +577,13 @@ export default function AdminPage() {
               <Button variant="outline" className="w-full justify-start">
                 <FileText className="h-4 w-4 mr-2" />
                 PDF Coordinate Tester
+              </Button>
+            </Link>
+
+            <Link href="/admin/test-digitalbga-coordinates">
+              <Button variant="outline" className="w-full justify-start">
+                <FileText className="h-4 w-4 mr-2" />
+                DigitalBGA Coordinate Tester
               </Button>
             </Link>
           </div>
@@ -607,7 +634,7 @@ export default function AdminPage() {
           <div className="p-3 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-600">
               <strong>Note:</strong> The system automatically selects the next
-              available start date based on the candidate's class type (AGENT
+              available start date based on the candidate&apos;s class type (AGENT
               for licensed, UNL for unlicensed).
             </p>
           </div>

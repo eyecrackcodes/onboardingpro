@@ -37,6 +37,7 @@ import {
   Video,
   Users,
   Plus,
+  ExternalLink,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Candidate } from "@/lib/types";
@@ -47,6 +48,8 @@ import { formatDate, formatDateTime } from "@/lib/utils";
 import type { InterviewEvaluation } from "@/lib/types";
 import { InterviewEvaluationForm } from "./InterviewEvaluationForm";
 import { OfferSender } from "./OfferSender";
+import { getDoc, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface SectionProps {
   candidate: Candidate;
@@ -245,6 +248,8 @@ export function BackgroundCheckSection({ candidate, onUpdate }: SectionProps) {
 }
 
 export function OffersSection({ candidate, onUpdate }: SectionProps) {
+  const [downloading, setDownloading] = useState(false);
+  
   // Provide default values if offers is undefined
   const offers = candidate.offers || {
     preLicenseOffer: {
@@ -264,6 +269,57 @@ export function OffersSection({ candidate, onUpdate }: SectionProps) {
   const preLicenseOffer = offers.preLicenseOffer;
   const fullAgentOffer = offers.fullAgentOffer;
 
+  const handleDownloadSignedOffer = async (offerType: 'preLicense' | 'fullAgent') => {
+    setDownloading(true);
+    try {
+      // Get the offer document from Firestore to check for download URL or base64
+      const offerDoc = await getDoc(doc(db, "offers", candidate.id));
+      
+      if (!offerDoc.exists()) {
+        alert("Offer document not found");
+        return;
+      }
+
+      const offerData = offerDoc.data();
+      
+      if (offerData.downloadUrl) {
+        // Direct download from Firebase Storage
+        window.open(offerData.downloadUrl, "_blank");
+      } else if (offerData.signedPdfBase64) {
+        // Fallback: Convert base64 to blob and download
+        const base64 = offerData.signedPdfBase64;
+        const byteCharacters = atob(base64);
+        const byteNumbers = new Array(byteCharacters.length);
+        
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        
+        // Create download link
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `signed-offer-${candidate.personalInfo.name.replace(/\s+/g, '-')}-${offerType}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        // Clean up
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+      } else {
+        alert("Signed document not available for download");
+      }
+    } catch (error) {
+      console.error("Error downloading signed offer:", error);
+      alert("Failed to download signed offer. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Pre-License Offer */}
@@ -273,7 +329,7 @@ export function OffersSection({ candidate, onUpdate }: SectionProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           {offers.preLicenseOffer.sent ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Badge
                   variant={
@@ -293,6 +349,39 @@ export function OffersSection({ candidate, onUpdate }: SectionProps) {
                   </span>
                 )}
               </div>
+              
+              {/* Download button for signed offers */}
+              {offers.preLicenseOffer.signed && (
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handleDownloadSignedOffer('preLicense')}
+                    variant="outline"
+                    size="sm"
+                    disabled={downloading}
+                  >
+                    {downloading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Downloading...
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Download Signed Offer
+                      </>
+                    )}
+                  </Button>
+                  
+                  <Button
+                    onClick={() => window.open(`/offer/${candidate.id}`, "_blank")}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View Offer
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
             <OfferSender candidate={candidate} />
@@ -307,10 +396,46 @@ export function OffersSection({ candidate, onUpdate }: SectionProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           {fullAgentOffer.sent ? (
-            <div className="space-y-2">
-              <Badge variant={fullAgentOffer.signed ? "default" : "secondary"}>
-                {fullAgentOffer.signed ? "Signed" : "Sent"}
-              </Badge>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Badge variant={fullAgentOffer.signed ? "default" : "secondary"}>
+                  {fullAgentOffer.signed ? "Signed" : "Sent"}
+                </Badge>
+                {fullAgentOffer.sentAt && (
+                  <span className="text-xs text-gray-500">
+                    Sent {formatDate(fullAgentOffer.sentAt)}
+                  </span>
+                )}
+                {fullAgentOffer.signedAt && (
+                  <span className="text-xs text-gray-500">
+                    • Signed {formatDate(fullAgentOffer.signedAt)}
+                  </span>
+                )}
+              </div>
+              
+              {/* Download button for signed full agent offers */}
+              {fullAgentOffer.signed && (
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handleDownloadSignedOffer('fullAgent')}
+                    variant="outline"
+                    size="sm"
+                    disabled={downloading}
+                  >
+                    {downloading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Downloading...
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Download Signed Offer
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
             <Button
@@ -319,15 +444,6 @@ export function OffersSection({ candidate, onUpdate }: SectionProps) {
               Send Full Agent Offer
             </Button>
           )}
-
-          <div className="grid gap-4 md:grid-cols-2 text-sm text-gray-600">
-            {fullAgentOffer.sentAt && (
-              <div>Sent: {formatDateTime(fullAgentOffer.sentAt)}</div>
-            )}
-            {fullAgentOffer.signedAt && (
-              <div>Signed: {formatDateTime(fullAgentOffer.signedAt)}</div>
-            )}
-          </div>
         </CardContent>
       </Card>
     </div>
@@ -335,6 +451,11 @@ export function OffersSection({ candidate, onUpdate }: SectionProps) {
 }
 
 export function LicensingSection({ candidate, onUpdate }: SectionProps) {
+  // Ensure candidate exists and has proper structure
+  if (!candidate) {
+    return null;
+  }
+
   const licensing = candidate.licensing || {
     licenseObtained: false,
     licensePassed: false,
@@ -353,7 +474,7 @@ export function LicensingSection({ candidate, onUpdate }: SectionProps) {
         <div className="bg-gray-50 p-4 rounded-lg">
           <div className="text-sm font-medium">Current License Status</div>
           <div className="text-2xl font-bold mt-1">
-            {candidate.licenseStatus}
+            {candidate.licenseStatus || "Unknown"}
           </div>
         </div>
 

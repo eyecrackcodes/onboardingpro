@@ -41,8 +41,8 @@ interface InterviewSchedulerProps {
 
 export default function InterviewScheduler({
   candidate,
-  onSchedule,
-  onClose,
+  onScheduled,
+  onCancel,
 }: InterviewSchedulerProps) {
   console.log(
     "[InterviewScheduler] Component rendered with candidate:",
@@ -277,7 +277,7 @@ export default function InterviewScheduler({
           notes ||
           `${interviewTitle}\n\nCandidate: ${
             candidate.personalInfo.name
-          }\nPosition: ${candidate.position || "Call Center Representative"}`,
+          }\nPosition: Call Center Representative`,
         conferenceType: meetingType,
         eventTitle: interviewTitle, // Add this to the interface
       });
@@ -287,7 +287,7 @@ export default function InterviewScheduler({
         eventId
       );
 
-      onSchedule({
+      onScheduled({
         scheduledDate: selectedTime,
         calendarEventId: eventId,
         location:
@@ -576,15 +576,15 @@ export default function InterviewScheduler({
                 selectedTime: {selectedTime ? selectedTime.toString() : "null"}
               </li>
               <li>
-                candidateEmail: "{candidateEmail}" (length:{" "}
+                candidateEmail: &quot;{candidateEmail}&quot; (length:{" "}
                 {candidateEmail.length})
               </li>
               <li>
-                interviewerEmail: "{interviewerEmail}" (length:{" "}
+                interviewerEmail: &quot;{interviewerEmail}&quot; (length:{" "}
                 {interviewerEmail.length})
               </li>
               <li>
-                interviewTitle: "{interviewTitle}" (length:{" "}
+                interviewTitle: &quot;{interviewTitle}&quot; (length:{" "}
                 {interviewTitle.length})
               </li>
               <li>loading: {loading ? "true" : "false"}</li>
@@ -633,7 +633,7 @@ export default function InterviewScheduler({
                 </>
               )}
             </Button>
-            <Button variant="outline" onClick={onClose} disabled={loading}>
+            <Button variant="outline" onClick={onCancel} disabled={loading}>
               Cancel
             </Button>
           </div>
