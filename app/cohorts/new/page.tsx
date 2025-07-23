@@ -430,7 +430,7 @@ export default function NewCohortPage() {
                 </p>
                 <p className="text-sm text-gray-400 mt-1">
                   You can create the cohort now and add candidates later when
-                  they're ready.
+                  they&apos;re ready.
                 </p>
               </div>
             )}

@@ -337,7 +337,7 @@ export default function OfferSignPage({ params }: { params: { id: string } }) {
             </p>
             <div className="bg-blue-50 rounded-lg p-4 mb-6">
               <p className="text-sm text-blue-800">
-                <strong>What's Next?</strong><br />
+                <strong>What&apos;s Next?</strong><br />
                 Our HR team will be in contact with you shortly regarding your start date and next steps.
               </p>
             </div>

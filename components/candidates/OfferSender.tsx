@@ -210,8 +210,8 @@ export function OfferSender({ candidate }: { candidate: Candidate }) {
                 : "Not sent"}
             </p>
             <p>
-              <strong>Required Action:</strong> Complete I-9 form in the "I-9
-              Form" tab first
+              <strong>Required Action:</strong> Complete I-9 form in the &quot;I-9
+              Form&quot; tab first
             </p>
           </div>
         </div>

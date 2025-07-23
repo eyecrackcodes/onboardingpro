@@ -576,15 +576,15 @@ export default function InterviewScheduler({
                 selectedTime: {selectedTime ? selectedTime.toString() : "null"}
               </li>
               <li>
-                candidateEmail: "{candidateEmail}" (length:{" "}
+                candidateEmail: &quot;{candidateEmail}&quot; (length:{" "}
                 {candidateEmail.length})
               </li>
               <li>
-                interviewerEmail: "{interviewerEmail}" (length:{" "}
+                interviewerEmail: &quot;{interviewerEmail}&quot; (length:{" "}
                 {interviewerEmail.length})
               </li>
               <li>
-                interviewTitle: "{interviewTitle}" (length:{" "}
+                interviewTitle: &quot;{interviewTitle}&quot; (length:{" "}
                 {interviewTitle.length})
               </li>
               <li>loading: {loading ? "true" : "false"}</li>

@@ -324,7 +324,7 @@ export function InterviewSection({
                   <p>No evaluations yet</p>
                   {interview.status === "In Progress" && (
                     <p className="text-sm mt-2">
-                      Click "Add Evaluation" to submit an interview evaluation
+                      Click &quot;Add Evaluation&quot; to submit an interview evaluation
                     </p>
                   )}
                 </div>
