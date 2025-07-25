@@ -42,6 +42,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Listen to auth state changes
     const unsubscribe = authService.onAuthStateChanged((user) => {
+      console.log("[AuthProvider] Auth state changed:", {
+        user: user ? {
+          uid: user.uid,
+          email: user.email,
+          role: user.role,
+          hasViewDashboard: user.permissions?.viewDashboard
+        } : null
+      });
       setUser(user);
       setLoading(false);
     });
@@ -390,6 +398,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     user.appUser &&
     new Date().getTime() - user.appUser.createdAt.getTime() < 60000
   ) {
+    // Auto-redirect after 3 seconds instead of requiring manual reload
+    setTimeout(() => {
+      window.location.href = "/";
+    }, 3000);
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Card className="w-full max-w-md">
@@ -405,14 +418,17 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
               Your account has been created with <strong>{user.role}</strong>{" "}
               permissions.
             </p>
-            <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
+            <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg mb-4">
               <p>
                 If you need different permissions, please contact your
                 administrator.
               </p>
             </div>
-            <Button onClick={() => window.location.reload()} className="mt-4">
-              Continue to Dashboard
+            <div className="text-sm text-blue-600 mb-4">
+              Redirecting to dashboard in 3 seconds...
+            </div>
+            <Button onClick={() => window.location.href = "/"} className="mt-2">
+              Continue to Dashboard Now
             </Button>
           </CardContent>
         </Card>

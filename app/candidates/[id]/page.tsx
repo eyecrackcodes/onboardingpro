@@ -114,7 +114,7 @@ export default function CandidateDetailPage() {
 
   // Helper function to smooth scroll to a section with visual feedback
   const focusOnSection = useCallback(
-    (targetTab: string, sectionRef?: React.RefObject<HTMLDivElement>) => {
+    (targetTab: string, sectionRef?: React.RefObject<HTMLDivElement | null>) => {
       // First, switch to the correct tab
       setActiveTab(targetTab);
 
@@ -488,11 +488,21 @@ export default function CandidateDetailPage() {
           }`}
           ref={offersRef}
         >
-          <OffersSection candidate={candidate} onUpdate={handleUpdate} />
-          <OfferListener
+          <OffersSection 
             candidate={candidate}
-            onOfferUpdate={(updates) => {
-              handleUpdate({ offers: updates });
+            saving={false}
+            onUpdate={(field: string | Partial<Candidate>, value?: any) => {
+              if (typeof field === 'string') {
+                handleUpdate({ [field]: value });
+              } else {
+                handleUpdate(field);
+              }
+            }} 
+          />
+          <OfferListener
+            candidateId={candidate.id}
+            onUpdate={(updates: Partial<Candidate>) => {
+              handleUpdate(updates);
             }}
           />
         </TabsContent>
@@ -506,7 +516,17 @@ export default function CandidateDetailPage() {
           }`}
           ref={licensingRef}
         >
-          <LicensingSection candidate={candidate} onUpdate={handleUpdate} />
+          <LicensingSection 
+            candidate={candidate} 
+            saving={false}
+            onUpdate={(field: string | Partial<Candidate>, value?: any) => {
+              if (typeof field === 'string') {
+                handleUpdate({ [field]: value });
+              } else {
+                handleUpdate(field);
+              }
+            }} 
+          />
         </TabsContent>
 
         <TabsContent
@@ -520,7 +540,14 @@ export default function CandidateDetailPage() {
         >
           <ClassAssignmentSection
             candidate={candidate}
-            onUpdate={handleUpdate}
+            saving={false}
+            onUpdate={(field: string | Partial<Candidate>, value?: any) => {
+              if (typeof field === 'string') {
+                handleUpdate({ [field]: value });
+              } else {
+                handleUpdate(field);
+              }
+            }}
             onNestedUpdate={handleNestedUpdate}
           />
         </TabsContent>
