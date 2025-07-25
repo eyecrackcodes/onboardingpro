@@ -15,9 +15,19 @@ import {
   QueryConstraint,
   Unsubscribe,
   writeBatch,
+  limit,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Candidate, Cohort, Trainer } from "./types";
+import type {
+  Candidate,
+  Cohort,
+  Trainer,
+  InterviewEvaluation,
+  CohortParticipantProgress,
+  AppUser,
+  UserRole,
+} from "./types";
 
 // Helper function to convert Firestore timestamps to Date objects
 function convertTimestamps(data: DocumentData): any {
@@ -599,3 +609,469 @@ export const getTrainers = async (filters?: {
     throw error;
   }
 };
+
+// Enhanced participant fetching functions
+export const getCohortParticipants = async (
+  participantIds: string[]
+): Promise<Candidate[]> => {
+  try {
+    if (participantIds.length === 0) return [];
+
+    // Batch fetch participants by IDs
+    const participantPromises = participantIds.map(async (id) => {
+      const docSnap = await getDoc(doc(db, "candidates", id));
+      if (docSnap.exists()) {
+        return {
+          id: docSnap.id,
+          ...convertTimestamps(docSnap.data()),
+        } as Candidate;
+      }
+      return null;
+    });
+
+    const participants = await Promise.all(participantPromises);
+    return participants.filter(Boolean) as Candidate[];
+  } catch (error) {
+    console.error("Error getting cohort participants:", error);
+    throw error;
+  }
+};
+
+// Get eligible candidates for a specific cohort
+export const getEligibleCandidatesForCohort = async (
+  callCenter: "CLT" | "ATX",
+  classType: "UNL" | "AGENT",
+  excludeParticipantIds: string[] = []
+): Promise<Candidate[]> => {
+  try {
+    const constraints: QueryConstraint[] = [
+      where("callCenter", "==", callCenter),
+      where("status", "==", "Active"),
+      where("backgroundCheck.status", "==", "Completed"),
+    ];
+
+    // Add class type specific constraints
+    if (classType === "UNL") {
+      constraints.push(where("licenseStatus", "==", "Unlicensed"));
+      constraints.push(where("offers.preLicenseOffer.signed", "==", true));
+    } else {
+      constraints.push(where("licenseStatus", "==", "Licensed"));
+    }
+
+    const q = query(collection(db, "candidates"), ...constraints);
+    const querySnapshot = await getDocs(q);
+
+    let candidates = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...convertTimestamps(doc.data()),
+    })) as Candidate[];
+
+    // Filter out already assigned participants and candidates with confirmed start dates
+    candidates = candidates.filter(
+      (c) =>
+        !excludeParticipantIds.includes(c.id) &&
+        (!c.classAssignment?.startDate || !c.classAssignment?.startConfirmed)
+    );
+
+    return candidates;
+  } catch (error) {
+    console.error("Error getting eligible candidates:", error);
+    throw error;
+  }
+};
+
+// Enhanced Participant Management Functions
+export const addParticipantToCohort = async (
+  cohortId: string,
+  candidateId: string
+): Promise<void> => {
+  try {
+    // Get current cohort data
+    const cohort = await getCohort(cohortId);
+    if (!cohort) {
+      throw new Error("Cohort not found");
+    }
+
+    // Get candidate data
+    const candidates = await getCandidates();
+    const candidate = candidates.find((c) => c.id === candidateId);
+    if (!candidate) {
+      throw new Error("Candidate not found");
+    }
+
+    // Check if candidate is eligible
+    if (!isEligibleForCohort(candidate, cohort)) {
+      throw new Error("Candidate is not eligible for this cohort");
+    }
+
+    // Update cohort participants
+    const updatedParticipants = [...cohort.participants, candidateId];
+
+    // Initialize participant progress
+    const initialProgress: CohortParticipantProgress = {
+      participantId: candidateId,
+      currentStage: "START",
+      stageProgress: {
+        START: {
+          startedAt: new Date(),
+          status: "in_progress",
+        },
+      },
+      overallProgress: 0,
+      isOnTrack: true,
+      lastUpdated: new Date(),
+    };
+
+    // Update cohort with new participant and progress tracking
+    await updateCohort(cohortId, {
+      participants: updatedParticipants,
+      participantProgress: {
+        ...cohort.participantProgress,
+        [candidateId]: initialProgress,
+      },
+    });
+
+    // Update candidate's class assignment
+    await updateCandidate(candidateId, {
+      classAssignment: {
+        ...candidate.classAssignment,
+        startDate: cohort.startDate,
+        startConfirmed: true,
+        classType: cohort.classType,
+      },
+    });
+  } catch (error) {
+    console.error("Error adding participant to cohort:", error);
+    throw error;
+  }
+};
+
+export const removeParticipantFromCohort = async (
+  cohortId: string,
+  candidateId: string
+): Promise<void> => {
+  try {
+    // Get current cohort data
+    const cohort = await getCohort(cohortId);
+    if (!cohort) {
+      throw new Error("Cohort not found");
+    }
+
+    // Get candidate data
+    const candidates = await getCandidates();
+    const candidate = candidates.find((c) => c.id === candidateId);
+    if (!candidate) {
+      throw new Error("Candidate not found");
+    }
+
+    // Update cohort participants
+    const updatedParticipants = cohort.participants.filter(
+      (id) => id !== candidateId
+    );
+    const updatedProgress = { ...cohort.participantProgress };
+    delete updatedProgress[candidateId];
+
+    // Update cohort
+    await updateCohort(cohortId, {
+      participants: updatedParticipants,
+      participantProgress: updatedProgress,
+    });
+
+    // Clear candidate's class assignment
+    await updateCandidate(candidateId, {
+      classAssignment: {
+        ...candidate.classAssignment,
+        startDate: undefined,
+        startConfirmed: false,
+      },
+    });
+  } catch (error) {
+    console.error("Error removing participant from cohort:", error);
+    throw error;
+  }
+};
+
+export const updateParticipantProgress = async (
+  cohortId: string,
+  candidateId: string,
+  progress: Partial<CohortParticipantProgress>
+): Promise<void> => {
+  try {
+    const cohort = await getCohort(cohortId);
+    if (!cohort) {
+      throw new Error("Cohort not found");
+    }
+
+    const currentProgress = cohort.participantProgress?.[candidateId];
+    if (!currentProgress) {
+      throw new Error("Participant progress not found");
+    }
+
+    const updatedProgress: CohortParticipantProgress = {
+      ...currentProgress,
+      ...progress,
+      lastUpdated: new Date(),
+    };
+
+    await updateCohort(cohortId, {
+      participantProgress: {
+        ...cohort.participantProgress,
+        [candidateId]: updatedProgress,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating participant progress:", error);
+    throw error;
+  }
+};
+
+export const getParticipantProgress = async (
+  cohortId: string,
+  candidateId: string
+): Promise<CohortParticipantProgress | null> => {
+  try {
+    const cohort = await getCohort(cohortId);
+    if (!cohort) {
+      return null;
+    }
+
+    return cohort.participantProgress?.[candidateId] || null;
+  } catch (error) {
+    console.error("Error getting participant progress:", error);
+    throw error;
+  }
+};
+
+// Utility function for eligibility checking
+export const isEligibleForCohort = (
+  candidate: Candidate,
+  cohort: Cohort
+): boolean => {
+  // Basic requirements
+  if (candidate.callCenter !== cohort.callCenter) return false;
+  if (candidate.status !== "Active") return false;
+  if (candidate.backgroundCheck.status !== "Completed") return false;
+
+  // Already in this cohort
+  if (cohort.participants.includes(candidate.id)) return false;
+
+  // Already confirmed for another cohort
+  if (
+    candidate.classAssignment?.startDate &&
+    candidate.classAssignment?.startConfirmed
+  ) {
+    return false;
+  }
+
+  // Class type specific requirements
+  if (cohort.classType === "UNL") {
+    return (
+      candidate.licenseStatus === "Unlicensed" &&
+      candidate.offers.preLicenseOffer.signed
+    );
+  } else {
+    return candidate.licenseStatus === "Licensed";
+  }
+};
+
+// Get comprehensive cohort statistics
+export const getCohortStatistics = async (cohortId: string) => {
+  try {
+    const cohort = await getCohort(cohortId);
+    if (!cohort) {
+      throw new Error("Cohort not found");
+    }
+
+    const participants = await getCohortParticipants(cohort.participants);
+    const progress = cohort.participantProgress || {};
+
+    return {
+      totalParticipants: participants.length,
+      participantsOnTrack: Object.values(progress).filter((p) => p.isOnTrack)
+        .length,
+      participantsWithConcerns: Object.values(progress).filter(
+        (p) => p.flaggedConcerns && p.flaggedConcerns.length > 0
+      ).length,
+      averageProgress:
+        Object.values(progress).reduce((sum, p) => sum + p.overallProgress, 0) /
+          Object.values(progress).length || 0,
+      stageDistribution: Object.values(progress).reduce((acc, p) => {
+        acc[p.currentStage] = (acc[p.currentStage] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+    };
+  } catch (error) {
+    console.error("Error getting cohort statistics:", error);
+    throw error;
+  }
+};
+
+// =======================
+// USER MANAGEMENT
+// =======================
+
+// Create or update user
+export async function createOrUpdateUser(userData: AppUser): Promise<void> {
+  try {
+    const userRef = doc(db, "users", userData.id);
+    await updateDoc(userRef, {
+      ...userData,
+      createdAt: userData.createdAt,
+      lastLoginAt: serverTimestamp(),
+    }).catch(async () => {
+      // If document doesn't exist, create it
+      await addDoc(collection(db, "users"), {
+        ...userData,
+        createdAt: serverTimestamp(),
+        lastLoginAt: serverTimestamp(),
+      });
+    });
+    
+    console.log("[Firestore] User created/updated:", userData.email);
+  } catch (error) {
+    console.error("[Firestore] Error creating/updating user:", error);
+    throw error;
+  }
+}
+
+// Get user by email
+export async function getUserByEmail(email: string): Promise<AppUser | null> {
+  try {
+    const usersRef = collection(db, "users");
+    const q = query(usersRef, where("email", "==", email), limit(1));
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      return null;
+    }
+    
+    const userDoc = querySnapshot.docs[0];
+    const userData = userDoc.data();
+    
+    return {
+      id: userDoc.id,
+      ...userData,
+      createdAt: userData.createdAt?.toDate() || new Date(),
+      lastLoginAt: userData.lastLoginAt?.toDate() || new Date(),
+    } as AppUser;
+  } catch (error) {
+    console.error("[Firestore] Error getting user by email:", error);
+    throw error;
+  }
+}
+
+// Get user by ID
+export async function getUserById(userId: string): Promise<AppUser | null> {
+  try {
+    const userRef = doc(db, "users", userId);
+    const userSnap = await getDoc(userRef);
+    
+    if (!userSnap.exists()) {
+      return null;
+    }
+    
+    const userData = userSnap.data();
+    return {
+      id: userSnap.id,
+      ...userData,
+      createdAt: userData.createdAt?.toDate() || new Date(),
+      lastLoginAt: userData.lastLoginAt?.toDate() || new Date(),
+    } as AppUser;
+  } catch (error) {
+    console.error("[Firestore] Error getting user by ID:", error);
+    throw error;
+  }
+}
+
+// Get all users (for admin management)
+export async function getAllUsers(): Promise<AppUser[]> {
+  try {
+    const usersRef = collection(db, "users");
+    const q = query(usersRef, orderBy("createdAt", "desc"));
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs.map(doc => {
+      const userData = doc.data();
+      return {
+        id: doc.id,
+        ...userData,
+        createdAt: userData.createdAt?.toDate() || new Date(),
+        lastLoginAt: userData.lastLoginAt?.toDate() || new Date(),
+      } as AppUser;
+    });
+  } catch (error) {
+    console.error("[Firestore] Error getting all users:", error);
+    throw error;
+  }
+}
+
+// Update user role and permissions
+export async function updateUserRole(userId: string, role: UserRole, permissions: any): Promise<void> {
+  try {
+    const userRef = doc(db, "users", userId);
+    await updateDoc(userRef, {
+      role,
+      permissions,
+      updatedAt: serverTimestamp(),
+    });
+    
+    console.log("[Firestore] User role updated:", { userId, role });
+  } catch (error) {
+    console.error("[Firestore] Error updating user role:", error);
+    throw error;
+  }
+}
+
+// Activate/deactivate user
+export async function updateUserStatus(userId: string, isActive: boolean): Promise<void> {
+  try {
+    const userRef = doc(db, "users", userId);
+    await updateDoc(userRef, {
+      isActive,
+      updatedAt: serverTimestamp(),
+    });
+    
+    console.log("[Firestore] User status updated:", { userId, isActive });
+  } catch (error) {
+    console.error("[Firestore] Error updating user status:", error);
+    throw error;
+  }
+}
+
+// Subscribe to users collection changes
+export function subscribeToUsers(callback: (users: AppUser[]) => void): Unsubscribe {
+  try {
+    const usersRef = collection(db, "users");
+    const q = query(usersRef, orderBy("createdAt", "desc"));
+    
+    return onSnapshot(q, (querySnapshot) => {
+      const users = querySnapshot.docs.map(doc => {
+        const userData = doc.data();
+        return {
+          id: doc.id,
+          ...userData,
+          createdAt: userData.createdAt?.toDate() || new Date(),
+          lastLoginAt: userData.lastLoginAt?.toDate() || new Date(),
+        } as AppUser;
+      });
+      
+      callback(users);
+    });
+  } catch (error) {
+    console.error("[Firestore] Error subscribing to users:", error);
+    throw error;
+  }
+}
+
+// Delete user (admin only)
+export async function deleteUser(userId: string): Promise<void> {
+  try {
+    const userRef = doc(db, "users", userId);
+    await deleteDoc(userRef);
+    
+    console.log("[Firestore] User deleted:", userId);
+  } catch (error) {
+    console.error("[Firestore] Error deleting user:", error);
+    throw error;
+  }
+}

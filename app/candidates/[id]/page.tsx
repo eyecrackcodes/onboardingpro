@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,11 +18,11 @@ import { formatDate } from "@/lib/utils";
 import type { Candidate } from "@/lib/types";
 import {
   BackgroundCheckSection,
-  ClassAssignmentSection,
   OffersSection,
   LicensingSection,
-} from "@/components/candidates/CandidateSections";
-import { InterviewSection } from "@/components/candidates/InterviewSection";
+  ClassAssignmentSection,
+  InterviewSection,
+} from "@/components/candidates";
 import { BackgroundCheckWithIBR } from "@/components/candidates/BackgroundCheckWithIBR";
 import { OnboardingWizard } from "@/components/candidates/OnboardingWizard";
 import { InterviewProgressIndicator } from "@/components/candidates/InterviewProgressIndicator";
@@ -41,6 +41,15 @@ export default function CandidateDetailPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [showSchedulerOnInterviewTab, setShowSchedulerOnInterviewTab] =
     useState(false);
+  const [focusedSection, setFocusedSection] = useState<string | null>(null);
+
+  // Refs for smooth scrolling to sections
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const interviewRef = useRef<HTMLDivElement>(null);
+  const backgroundRef = useRef<HTMLDivElement>(null);
+  const offersRef = useRef<HTMLDivElement>(null);
+  const licensingRef = useRef<HTMLDivElement>(null);
+  const assignmentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!candidateId) return;
@@ -59,79 +68,33 @@ export default function CandidateDetailPage() {
 
   // Reset the scheduler flag when tab changes
   useEffect(() => {
-    if (activeTab === "interview" && showSchedulerOnInterviewTab) {
-      // Reset the flag after a short delay to ensure the child component has received it
-      const timer = setTimeout(() => {
-        setShowSchedulerOnInterviewTab(false);
-      }, 100);
-      return () => clearTimeout(timer);
+    if (activeTab !== "interview") {
+      setShowSchedulerOnInterviewTab(false);
     }
-  }, [activeTab, showSchedulerOnInterviewTab]);
+  }, [activeTab]);
 
-  const handleUpdate = useCallback(
-    async (updates: Partial<Candidate>) => {
-      if (!candidate) return;
+  const handleUpdate = async (updates: Partial<Candidate>) => {
+    if (!candidate) return;
 
-      // Reduce logging noise - only log non-offers updates
-      if (!updates.offers) {
-        console.log("[CandidateDetailPage] handleUpdate called with:", updates);
-      }
-
-      // This ensures Firestore receives clean data without `undefined` values
-      const cleanUpdates = Object.entries(updates).reduce(
-        (acc, [key, value]) => {
-          if (value !== undefined) {
-            (acc as any)[key as keyof Candidate] = value;
-          }
-          return acc;
-        },
-        {} as Partial<Candidate>
-      );
-
-      if (!updates.offers) {
-        console.log(
-          "[CandidateDetailPage] Clean updates to send to Firestore:",
-          cleanUpdates
-        );
-      }
-
-      try {
-        await updateCandidate(candidate.id, cleanUpdates);
-        if (!updates.offers) {
-          console.log(
-            "[CandidateDetailPage] Successfully updated candidate in Firestore"
-          );
-        }
-      } catch (error) {
-        console.error("[CandidateDetailPage] Error updating candidate:", error);
-        alert("Failed to update candidate");
-      }
-    },
-    [candidate]
-  );
+    try {
+      await updateCandidate(candidate.id, updates);
+    } catch (error) {
+      console.error("Error updating candidate:", error);
+      alert("Failed to update candidate");
+    }
+  };
 
   const handleNestedUpdate = async (path: string, value: any) => {
     if (!candidate) return;
 
-    console.log(
-      "[CandidateDetailPage] handleNestedUpdate called with path:",
-      path,
-      "value:",
-      value
-    );
-
-    // Create a deep copy to avoid direct state mutation
-    const updatedCandidate = JSON.parse(JSON.stringify(candidate));
-
-    // Use a library or a helper function to set the nested value
+    // Create nested update object
     const keys = path.split(".");
-    let current = updatedCandidate;
+    const update: any = {};
+    let current = update;
+
     for (let i = 0; i < keys.length - 1; i++) {
+      current[keys[i]] = {};
       current = current[keys[i]];
-      if (current === undefined) {
-        console.error("[CandidateDetailPage] Path does not exist:", path);
-        return; // Path does not exist
-      }
     }
     current[keys[keys.length - 1]] = value;
 
@@ -149,35 +112,79 @@ export default function CandidateDetailPage() {
     }
   };
 
-  // Handle wizard action clicks by changing to the appropriate tab
-  const handleWizardAction = useCallback((step: string, action?: string) => {
-    console.log(`[CandidateDetail] Wizard action: ${step} - ${action}`);
-    if (step === "interview") {
-      setActiveTab("interview");
-      if (action === "schedule") {
-        setShowSchedulerOnInterviewTab(true);
+  // Helper function to smooth scroll to a section with visual feedback
+  const focusOnSection = useCallback(
+    (targetTab: string, sectionRef?: React.RefObject<HTMLDivElement>) => {
+      // First, switch to the correct tab
+      setActiveTab(targetTab);
+
+      // Add temporary focus highlight
+      setFocusedSection(targetTab);
+
+      // Use setTimeout to ensure tab content is rendered before scrolling
+      setTimeout(() => {
+        // Scroll to the tabs container first
+        if (tabsRef.current) {
+          tabsRef.current.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+            inline: "nearest",
+          });
+        }
+
+        // Then scroll to specific section if ref provided
+        if (sectionRef?.current) {
+          setTimeout(() => {
+            sectionRef.current?.scrollIntoView({
+              behavior: "smooth",
+              block: "center",
+              inline: "nearest",
+            });
+          }, 300);
+        }
+
+        // Remove focus highlight after animation
+        setTimeout(() => {
+          setFocusedSection(null);
+        }, 2000);
+      }, 100);
+    },
+    []
+  );
+
+  // Enhanced wizard action handler with focus management
+  const handleWizardAction = useCallback(
+    (step: string, action?: string) => {
+      console.log(`[CandidateDetail] Wizard action: ${step} - ${action}`);
+
+      if (step === "interview") {
+        if (action === "schedule") {
+          setShowSchedulerOnInterviewTab(true);
+        }
+        focusOnSection("interview", interviewRef);
+      } else if (step === "background") {
+        focusOnSection("background", backgroundRef);
+      } else if (step === "offers") {
+        focusOnSection("offers", offersRef);
+      } else if (step === "licensing") {
+        focusOnSection("licensing", licensingRef);
+      } else if (step === "assignment") {
+        // Handle training completion action
+        if (action === "training-complete" && candidate) {
+          handleUpdate({
+            classAssignment: {
+              ...candidate.classAssignment,
+              trainingCompleted: true,
+              trainingCompletedDate: new Date(),
+              graduatedToLicensing: true,
+            },
+          });
+        }
+        focusOnSection("assignment", assignmentRef);
       }
-    } else if (step === "background") {
-      setActiveTab("background");
-    } else if (step === "offers") {
-      setActiveTab("offers");
-    } else if (step === "licensing") {
-      setActiveTab("licensing");
-    } else if (step === "assignment") {
-      setActiveTab("assignment");
-      // Handle training completion action
-      if (action === "training-complete" && candidate) {
-        handleUpdate({
-          classAssignment: {
-            ...candidate.classAssignment,
-            trainingCompleted: true,
-            trainingCompletedDate: new Date(),
-            graduatedToLicensing: true,
-          }
-        });
-      }
-    }
-  }, [candidate, handleUpdate]);
+    },
+    [candidate, handleUpdate, focusOnSection]
+  );
 
   const handleDeleteCandidate = async () => {
     if (!candidate) return;
@@ -291,7 +298,7 @@ export default function CandidateDetailPage() {
       )}
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={setActiveTab} ref={tabsRef}>
         <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="interview">Interview</TabsTrigger>
@@ -431,7 +438,15 @@ export default function CandidateDetailPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="interview" className="space-y-6">
+        <TabsContent
+          value="interview"
+          className={`space-y-6 transition-all duration-500 ${
+            focusedSection === "interview"
+              ? "ring-2 ring-blue-500 ring-opacity-50 bg-blue-50/30 rounded-lg p-4"
+              : ""
+          }`}
+          ref={interviewRef}
+        >
           <InterviewSection
             candidate={candidate}
             onUpdate={handleUpdate}
@@ -439,111 +454,74 @@ export default function CandidateDetailPage() {
           />
         </TabsContent>
 
-        <TabsContent value="background" className="space-y-6">
+        <TabsContent value="i9" className="space-y-6">
+          <I9Sender
+            candidate={candidate}
+            onUpdate={(candidateId, i9Updates) => {
+              console.log("I9 updates received:", i9Updates);
+              handleUpdate(i9Updates);
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent
+          value="background"
+          className={`space-y-6 transition-all duration-500 ${
+            focusedSection === "background"
+              ? "ring-2 ring-blue-500 ring-opacity-50 bg-blue-50/30 rounded-lg p-4"
+              : ""
+          }`}
+          ref={backgroundRef}
+        >
           <BackgroundCheckWithIBR
             candidate={candidate}
             onUpdate={handleUpdate}
           />
         </TabsContent>
 
-        <TabsContent value="i9" className="space-y-6">
-          <I9Sender 
-            candidate={candidate} 
-            onUpdate={(field: string, value: any) => {
-              handleUpdate({ [field]: value });
-            }} 
-          />
-        </TabsContent>
-
-        <TabsContent value="offers" className="space-y-6">
-          <OffersSection
+        <TabsContent
+          value="offers"
+          className={`space-y-6 transition-all duration-500 ${
+            focusedSection === "offers"
+              ? "ring-2 ring-blue-500 ring-opacity-50 bg-blue-50/30 rounded-lg p-4"
+              : ""
+          }`}
+          ref={offersRef}
+        >
+          <OffersSection candidate={candidate} onUpdate={handleUpdate} />
+          <OfferListener
             candidate={candidate}
-            saving={false}
-            onUpdate={(field, value) => {
-              // Initialize offers if undefined
-              const currentOffers = candidate.offers || {
-                preLicenseOffer: {
-                  sent: false,
-                  signed: false,
-                  sentAt: null,
-                  signedAt: null,
-                },
-                fullAgentOffer: {
-                  sent: false,
-                  signed: false,
-                  sentAt: null,
-                  signedAt: null,
-                },
-              };
-
-              // Handle the offers.xxx.yyy format
-              if (typeof field === "string" && field.startsWith("offers.")) {
-                const path = field.split(".");
-                const updatedOffers = { ...currentOffers };
-
-                if (path.length === 3) {
-                  // offers.preLicenseOffer.sent format
-                  const [, offerType, fieldName] = path;
-                  (updatedOffers as any)[offerType] = {
-                    ...(updatedOffers as any)[offerType],
-                    [fieldName]: value,
-                  };
-                }
-
-                handleUpdate({ offers: updatedOffers });
-              } else if (typeof field === "string") {
-                handleUpdate({ [field]: value });
-              } else {
-                handleUpdate(field);
-              }
+            onOfferUpdate={(updates) => {
+              handleUpdate({ offers: updates });
             }}
           />
         </TabsContent>
 
-        <TabsContent value="licensing" className="space-y-6">
-          <LicensingSection
-            candidate={candidate}
-            saving={false}
-            onUpdate={(field, value) => {
-              if (typeof field === "string") {
-                if (field === "licenseStatus") {
-                  handleUpdate({ licenseStatus: value });
-                } else if (field.startsWith("licensing.")) {
-                  const fieldName = field.replace("licensing.", "");
-                  const updatedLicensing = { ...candidate.licensing, [fieldName]: value };
-                  handleUpdate({ licensing: updatedLicensing });
-                } else {
-                  handleUpdate({ [field]: value });
-                }
-              } else {
-                handleUpdate(field);
-              }
-            }}
-          />
+        <TabsContent
+          value="licensing"
+          className={`space-y-6 transition-all duration-500 ${
+            focusedSection === "licensing"
+              ? "ring-2 ring-blue-500 ring-opacity-50 bg-blue-50/30 rounded-lg p-4"
+              : ""
+          }`}
+          ref={licensingRef}
+        >
+          <LicensingSection candidate={candidate} onUpdate={handleUpdate} />
         </TabsContent>
 
-        <TabsContent value="assignment" className="space-y-6">
+        <TabsContent
+          value="assignment"
+          className={`space-y-6 transition-all duration-500 ${
+            focusedSection === "assignment"
+              ? "ring-2 ring-blue-500 ring-opacity-50 bg-blue-50/30 rounded-lg p-4"
+              : ""
+          }`}
+          ref={assignmentRef}
+        >
           <ClassAssignmentSection
             candidate={candidate}
-            saving={false}
-            onUpdate={(field, value) => {
-              if (typeof field === "string") {
-                if (field === "readyToGo") {
-                  handleUpdate({ readyToGo: value });
-                } else if (field.startsWith("classAssignment.")) {
-                  const fieldName = field.replace("classAssignment.", "");
-                  const updatedAssignment = {
-                    ...candidate.classAssignment,
-                    [fieldName]: value,
-                  };
-                  handleUpdate({ classAssignment: updatedAssignment });
-                } else {
-                  handleUpdate({ [field]: value });
-                }
-              } else {
-                handleUpdate(field);
-              }
-            }}
+            onUpdate={handleUpdate}
+            onNestedUpdate={handleNestedUpdate}
           />
         </TabsContent>
       </Tabs>

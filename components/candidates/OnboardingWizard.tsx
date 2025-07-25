@@ -10,6 +10,7 @@ import {
   ArrowRight,
   Lock,
   Clock,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/utils";
@@ -42,7 +43,7 @@ export function OnboardingWizard({
   // Background check status used throughout component
   const bgCheckStatus = candidate.backgroundCheck.status;
   const classAssigned = !!candidate.classAssignment.startDate;
-  
+
   // Calculate which steps are complete, active, or locked
   const getSteps = (): OnboardingStep[] => {
     const interviewComplete =
@@ -50,8 +51,6 @@ export function OnboardingWizard({
       candidate.interview?.result === "Passed";
     const bgCheckComplete = bgCheckStatus === "Completed";
 
-    // Only log backgroundCheck for debugging when needed
-    // console.log("[OnboardingWizard] Candidate backgroundCheck object:", candidate.backgroundCheck);
     const preLicenseOfferSent =
       candidate.offers?.preLicenseOffer?.sent || false;
     const preLicenseOfferSigned =
@@ -59,22 +58,6 @@ export function OnboardingWizard({
     const isLicensed = candidate.licenseStatus === "Licensed";
     const fullOfferSent = candidate.offers?.fullAgentOffer?.sent || false;
     const fullOfferSigned = candidate.offers?.fullAgentOffer?.signed || false;
-    // Only log step calculation when debugging
-    // console.log("[OnboardingWizard] Step calculation:", {
-    //   interviewComplete,
-    //   interviewStatus: candidate.interview?.status,
-    //   interviewResult: candidate.interview?.result,
-    //   bgCheckComplete,
-    //   bgCheckStatus: candidate.backgroundCheck.status,
-    //   preLicenseOfferSent,
-    //   preLicenseOfferSigned,
-    //   isLicensed,
-    //   licenseStatus: candidate.licenseStatus,
-    //   fullOfferSent,
-    //   fullOfferSigned,
-    //   classAssigned,
-    //   readyToGo: candidate.readyToGo,
-    // });
 
     const steps: OnboardingStep[] = [
       {
@@ -167,13 +150,18 @@ export function OnboardingWizard({
                 ? "2-week training program completed"
                 : "Complete 2-week unlicensed training program",
               isComplete: !!candidate.classAssignment?.trainingCompleted,
-              isActive: preLicenseOfferSigned && !candidate.classAssignment?.trainingCompleted,
+              isActive:
+                preLicenseOfferSigned &&
+                !candidate.classAssignment?.trainingCompleted,
               isLocked: !preLicenseOfferSigned,
               action:
-                preLicenseOfferSigned && !candidate.classAssignment?.trainingCompleted && classAssigned
+                preLicenseOfferSigned &&
+                !candidate.classAssignment?.trainingCompleted &&
+                classAssigned
                   ? {
                       label: "Mark Training Complete",
-                      onClick: () => onActionClick("assignment", "training-complete"),
+                      onClick: () =>
+                        onActionClick("assignment", "training-complete"),
                     }
                   : !classAssigned
                   ? {
@@ -274,7 +262,7 @@ export function OnboardingWizard({
       if (!classAssigned) {
         return "Assign to training class and complete onboarding";
       }
-      
+
       // Calculate onboarding progress
       const tasks = [
         candidate.classAssignment.preStartCallCompleted,
@@ -285,7 +273,7 @@ export function OnboardingWizard({
       ];
       const completedTasks = tasks.filter(Boolean).length;
       const totalTasks = tasks.length;
-      
+
       if (candidate.readyToGo) {
         return "All onboarding tasks completed - Ready to start!";
       } else {
@@ -320,15 +308,39 @@ export function OnboardingWizard({
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Quick Action Banner */}
+        {activeStep && activeStep.action && (
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 rounded-full p-2">
+                <Zap className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold">{activeStep.title}</p>
+                <p className="text-blue-100 text-sm">
+                  {activeStep.description}
+                </p>
+              </div>
+              <Button
+                onClick={activeStep.action.onClick}
+                size="sm"
+                variant="secondary"
+                className="bg-white text-blue-700 hover:bg-blue-50"
+              >
+                {activeStep.action.label}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Progress Bar */}
         <div className="space-y-2">
-          <Progress value={progress} className="h-2" />
+          <Progress value={progress} className="h-3" />
           <p className="text-sm text-gray-600">
             {progress === 100
-              ? "Onboarding complete!"
-              : activeStep
-              ? `Current step: ${activeStep.title}`
-              : "Review requirements to continue"}
+              ? "🎉 Onboarding complete!"
+              : `${completedSteps} of ${steps.length} steps completed`}
           </p>
         </div>
 
@@ -338,37 +350,27 @@ export function OnboardingWizard({
             <div
               key={step.id}
               className={cn(
-                "relative flex gap-4 pb-8",
-                index === steps.length - 1 && "pb-0"
+                "relative flex gap-4 pb-4 border-l-2 ml-5 pl-6",
+                index === steps.length - 1 && "pb-0",
+                step.isActive ? "border-blue-500" : "border-gray-200"
               )}
             >
-              {/* Step Line */}
-              {index < steps.length - 1 && (
-                <div className="absolute left-5 top-10 bottom-0 w-0.5 bg-gray-200" />
-              )}
-
               {/* Step Icon */}
-              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center">
+              <div className="absolute -left-[9px] top-0 flex h-4 w-4 shrink-0 items-center justify-center">
                 {step.isComplete ? (
-                  <CheckCircle2 className="h-10 w-10 text-green-500" />
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
                 ) : step.isActive ? (
-                  <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
-                    <Circle className="h-6 w-6 text-white fill-white" />
-                  </div>
+                  <div className="h-4 w-4 rounded-full bg-blue-500" />
                 ) : step.isLocked ? (
-                  <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                    <Lock className="h-5 w-5 text-gray-400" />
-                  </div>
+                  <Lock className="h-3 w-3 text-gray-400" />
                 ) : (
-                  <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                    <Circle className="h-6 w-6 text-gray-400" />
-                  </div>
+                  <div className="h-4 w-4 rounded-full bg-gray-300" />
                 )}
               </div>
 
               {/* Step Content */}
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center justify-between">
+              <div className="flex-1 space-y-2 min-w-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <h4
                     className={cn(
                       "font-medium",
@@ -379,37 +381,42 @@ export function OnboardingWizard({
                   >
                     {step.title}
                   </h4>
-                  {step.id === "background" && (
-                    <StatusBadge
-                      variant={
-                        bgCheckStatus === "Failed"
-                          ? "outline"
-                          : "secondary"
-                      }
-                    >
-                      {bgCheckStatus}
-                    </StatusBadge>
-                  )}
-                  {step.id === "class-assignment" && classAssigned && !candidate.readyToGo && (
-                    <StatusBadge variant="secondary">
-                      {(() => {
-                        const tasks = [
-                          candidate.classAssignment.preStartCallCompleted,
-                          candidate.classAssignment.startConfirmed,
-                          candidate.classAssignment.backgroundDisclosureCompleted,
-                          candidate.classAssignment.badgeReceived,
-                          candidate.classAssignment.itRequestCompleted,
-                        ];
-                        const completed = tasks.filter(Boolean).length;
-                        return `${completed}/5`;
-                      })()}
-                    </StatusBadge>
-                  )}
-                  {step.completedAt && (
-                    <span className="text-xs text-gray-500">
-                      {formatDate(step.completedAt)}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {step.id === "background" && (
+                      <StatusBadge
+                        variant={
+                          bgCheckStatus === "Failed"
+                            ? "destructive"
+                            : "secondary"
+                        }
+                      >
+                        {bgCheckStatus}
+                      </StatusBadge>
+                    )}
+                    {step.id === "class-assignment" &&
+                      classAssigned &&
+                      !candidate.readyToGo && (
+                        <StatusBadge variant="secondary">
+                          {(() => {
+                            const tasks = [
+                              candidate.classAssignment.preStartCallCompleted,
+                              candidate.classAssignment.startConfirmed,
+                              candidate.classAssignment
+                                .backgroundDisclosureCompleted,
+                              candidate.classAssignment.badgeReceived,
+                              candidate.classAssignment.itRequestCompleted,
+                            ];
+                            const completed = tasks.filter(Boolean).length;
+                            return `${completed}/5`;
+                          })()}
+                        </StatusBadge>
+                      )}
+                    {step.completedAt && (
+                      <span className="text-xs text-gray-500">
+                        {formatDate(step.completedAt)}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <p
@@ -421,13 +428,13 @@ export function OnboardingWizard({
                   {step.description}
                 </p>
 
-                {/* Requirements */}
-                {step.isActive && step.requirements && (
+                {/* Requirements for locked steps */}
+                {step.isLocked && step.requirements && (
                   <div className="mt-2 space-y-1">
                     <p className="text-xs font-medium text-gray-500">
                       Requirements:
                     </p>
-                    <ul className="text-xs text-gray-600 space-y-0.5">
+                    <ul className="text-xs text-gray-500 space-y-0.5">
                       {step.requirements.map((req, i) => (
                         <li key={i} className="flex items-center gap-1">
                           <Circle className="h-2 w-2" />
@@ -438,12 +445,13 @@ export function OnboardingWizard({
                   </div>
                 )}
 
-                {/* Action Button */}
-                {step.action && (
+                {/* Action Button - Only show if not already shown in quick action banner */}
+                {step.action && !step.isActive && (
                   <Button
                     size="sm"
+                    variant="outline"
                     onClick={step.action.onClick}
-                    className="mt-3"
+                    className="mt-2"
                   >
                     {step.action.label}
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -461,33 +469,6 @@ export function OnboardingWizard({
             </div>
           ))}
         </div>
-
-        {/* Next Steps Alert */}
-        {activeStep && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex gap-2">
-              <Clock className="h-5 w-5 text-blue-600 mt-0.5" />
-              <div>
-                <p className="font-medium text-blue-900">
-                  Next Action Required
-                </p>
-                <p className="text-sm text-blue-700 mt-1">
-                  {activeStep.description}
-                </p>
-                {activeStep.action && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={activeStep.action.onClick}
-                    className="mt-2 border-blue-300 text-blue-700 hover:bg-blue-100"
-                  >
-                    {activeStep.action.label}
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

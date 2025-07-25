@@ -39,12 +39,22 @@ import {
   getCandidates,
   updateCandidate,
   getTrainers,
+  getCohortParticipants,
+  getEligibleCandidatesForCohort,
+  addParticipantToCohort,
+  removeParticipantFromCohort,
+  getCohortStatistics,
+  isEligibleForCohort,
 } from "@/lib/firestore";
 import {
   formatDate,
   getCohortProgress,
   getStageDisplayName,
 } from "@/lib/utils";
+import {
+  checkParticipantEligibility,
+  validateCohortParticipants,
+} from "@/lib/participant-utils";
 import type { Cohort, Candidate, Trainer } from "@/lib/types";
 
 export default function CohortDetailPage() {
@@ -53,7 +63,9 @@ export default function CohortDetailPage() {
   const cohortId = params.id as string;
   const [cohort, setCohort] = useState<Cohort | null>(null);
   const [participants, setParticipants] = useState<Candidate[]>([]);
-  const [availableCandidates, setAvailableCandidates] = useState<Candidate[]>([]);
+  const [availableCandidates, setAvailableCandidates] = useState<Candidate[]>(
+    []
+  );
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -86,16 +98,11 @@ export default function CohortDetailPage() {
         status: cohortData.status,
       });
 
-      // Fetch participants
-      if (cohortData.participants.length > 0) {
-        const participantData = await Promise.all(
-          cohortData.participants.map(async (id) => {
-            const candidates = await getCandidates();
-            return candidates.find(c => c.id === id);
-          })
-        );
-        setParticipants(participantData.filter(Boolean) as Candidate[]);
-      }
+      // Fetch participants using optimized function
+      const participantData = await getCohortParticipants(
+        cohortData.participants
+      );
+      setParticipants(participantData);
 
       // Fetch trainers for the cohort's call center
       const trainerData = await getTrainers({
@@ -104,37 +111,14 @@ export default function CohortDetailPage() {
       });
       setTrainers(trainerData);
 
-      // Fetch available candidates for adding
-      const allCandidates = await getCandidates({
-        callCenter: cohortData.callCenter,
-        status: "Active",
-      });
-      
-      // Filter candidates that can be added to this cohort
-      const eligible = allCandidates.filter(c => {
-        // Must not already be in this cohort
-        if (cohortData.participants.includes(c.id)) return false;
-        
-        // Must match the class type
-        if (cohortData.classType === "UNL") {
-          // For unlicensed classes: require pre-license offer signed
-          return (
-            c.licenseStatus === "Unlicensed" &&
-            c.backgroundCheck.status === "Completed" &&
-            c.offers.preLicenseOffer.signed &&
-            (!c.classAssignment.startDate || !c.classAssignment.startConfirmed)
-          );
-        } else {
-          // For licensed classes: only require license status, no offer requirement
-          return (
-            c.licenseStatus === "Licensed" &&
-            c.backgroundCheck.status === "Completed" &&
-            (!c.classAssignment.startDate || !c.classAssignment.startConfirmed)
-          );
-        }
-      });
-      
-      setAvailableCandidates(eligible);
+      // Fetch available candidates using optimized function
+      const eligibleCandidates = await getEligibleCandidatesForCohort(
+        cohortData.callCenter,
+        cohortData.classType,
+        cohortData.participants
+      );
+      setAvailableCandidates(eligibleCandidates);
+
       setLoading(false);
     } catch (error) {
       console.error("Error fetching cohort data:", error);
@@ -150,19 +134,22 @@ export default function CohortDetailPage() {
 
   const handleSave = async () => {
     if (!cohort) return;
-    
+
     setSaving(true);
     try {
       // Find trainer details
-      const trainer = trainers.find(t => t.id === formData.trainerId) || cohort.trainer;
-      
+      const trainer =
+        trainers.find((t) => t.id === formData.trainerId) || cohort.trainer;
+
       await updateCohort(cohortId, {
         name: formData.name,
-        trainer: formData.trainerId ? {
-          name: trainer.name,
-          type: trainer.type,
-                     contact: (trainer as Trainer).email,
-        } : cohort.trainer,
+        trainer: formData.trainerId
+          ? {
+              name: trainer.name,
+              type: trainer.type,
+              contact: (trainer as Trainer).email,
+            }
+          : cohort.trainer,
         performance: {
           metrics: formData.performanceMetrics,
           notes: formData.performanceNotes,
@@ -170,7 +157,7 @@ export default function CohortDetailPage() {
         },
         status: formData.status,
       });
-      
+
       alert("Cohort updated successfully");
       setEditMode(false);
       fetchData(); // Refresh data
@@ -184,83 +171,48 @@ export default function CohortDetailPage() {
 
   const handleAddParticipant = async (candidateId: string) => {
     if (!cohort) return;
-    
+
     try {
-      // First get the current candidate data
-      const allCandidates = await getCandidates();
-      const candidate = allCandidates.find(c => c.id === candidateId);
-      
-      if (!candidate) {
-        alert("Candidate not found");
-        return;
-      }
-      
-      // Update cohort participants
-      await updateCohort(cohortId, {
-        participants: [...cohort.participants, candidateId],
-      });
-      
-      // Update candidate's class assignment - preserve existing properties
-      await updateCandidate(candidateId, {
-        classAssignment: {
-          ...candidate.classAssignment, // Preserve existing properties
-          startDate: cohort.startDate,
-          startConfirmed: true,
-          classType: cohort.classType,
-        },
-      });
-      
+      // Use the enhanced participant management function
+      await addParticipantToCohort(cohortId, candidateId);
       alert("Participant added successfully");
       fetchData(); // Refresh data
     } catch (error) {
       console.error("Error adding participant:", error);
-      alert("Failed to add participant");
+      alert(
+        `Failed to add participant: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   };
 
   const handleRemoveParticipant = async (candidateId: string) => {
     if (!cohort) return;
-    
+
     const confirmed = window.confirm(
       "Are you sure you want to remove this participant from the cohort?"
     );
     if (!confirmed) return;
-    
+
     try {
-      // First get the current candidate data
-      const allCandidates = await getCandidates();
-      const candidate = allCandidates.find(c => c.id === candidateId);
-      
-      if (!candidate) {
-        alert("Candidate not found");
-        return;
-      }
-      
-      // Update cohort participants
-      await updateCohort(cohortId, {
-        participants: cohort.participants.filter(id => id !== candidateId),
-      });
-      
-      // Clear candidate's class assignment - preserve other properties
-      await updateCandidate(candidateId, {
-        classAssignment: {
-          ...candidate.classAssignment, // Preserve existing properties
-          startDate: undefined,
-          startConfirmed: false,
-        },
-      });
-      
+      // Use the enhanced participant management function
+      await removeParticipantFromCohort(cohortId, candidateId);
       alert("Participant removed successfully");
       fetchData(); // Refresh data
     } catch (error) {
       console.error("Error removing participant:", error);
-      alert("Failed to remove participant");
+      alert(
+        `Failed to remove participant: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   };
 
   const handleStageUpdate = async (newStage: string, weekNumber: number) => {
     if (!cohort) return;
-    
+
     try {
       await updateCohort(cohortId, {
         currentStage: newStage as any,
@@ -274,7 +226,7 @@ export default function CohortDetailPage() {
           },
         ],
       });
-      
+
       alert("Stage updated successfully");
       fetchData();
     } catch (error) {
@@ -301,9 +253,17 @@ export default function CohortDetailPage() {
 
   const progress = getCohortProgress(cohort.currentStage);
   const stages = [
-    "START", "WK_1", "WK_2", "WK_3_CSR", "WK_4_CSR",
-    "WK_5_CSR", "WK_6_CSR", "WK_7_A_BAY", "WK_8_A_BAY",
-    "WK_9_TEAM", "COMPLETED"
+    "START",
+    "WK_1",
+    "WK_2",
+    "WK_3_CSR",
+    "WK_4_CSR",
+    "WK_5_CSR",
+    "WK_6_CSR",
+    "WK_7_A_BAY",
+    "WK_8_A_BAY",
+    "WK_9_TEAM",
+    "COMPLETED",
   ];
   const currentStageIndex = stages.indexOf(cohort.currentStage);
 
@@ -322,7 +282,9 @@ export default function CohortDetailPage() {
               {editMode ? (
                 <Input
                   value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, name: e.target.value }))
+                  }
                   className="text-3xl font-bold"
                 />
               ) : (
@@ -330,7 +292,9 @@ export default function CohortDetailPage() {
               )}
             </h1>
             <div className="flex items-center gap-4 mt-1">
-              <Badge variant={cohort.status === "Active" ? "default" : "secondary"}>
+              <Badge
+                variant={cohort.status === "Active" ? "default" : "secondary"}
+              >
                 {cohort.status}
               </Badge>
               <Badge variant="outline">{cohort.callCenter}</Badge>
@@ -369,7 +333,9 @@ export default function CohortDetailPage() {
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>{getStageDisplayName(cohort.currentStage)}</span>
-              <span className="text-gray-500">Week {cohort.weekNumber} of 9</span>
+              <span className="text-gray-500">
+                Week {cohort.weekNumber} of 9
+              </span>
             </div>
             <Progress value={progress} />
           </div>
@@ -381,7 +347,13 @@ export default function CohortDetailPage() {
                 <Button
                   key={stage}
                   size="sm"
-                  variant={index === currentStageIndex ? "default" : index < currentStageIndex ? "secondary" : "outline"}
+                  variant={
+                    index === currentStageIndex
+                      ? "default"
+                      : index < currentStageIndex
+                      ? "secondary"
+                      : "outline"
+                  }
                   onClick={() => handleStageUpdate(stage, index + 1)}
                   disabled={index < currentStageIndex}
                 >
@@ -409,10 +381,14 @@ export default function CohortDetailPage() {
               {editMode ? (
                 <Select
                   value={formData.trainerId}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, trainerId: value }))}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, trainerId: value }))
+                  }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={`${cohort.trainer.name} (${cohort.trainer.type})`} />
+                    <SelectValue
+                      placeholder={`${cohort.trainer.name} (${cohort.trainer.type})`}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {trainers.map((trainer) => (
@@ -426,7 +402,9 @@ export default function CohortDetailPage() {
                 <p className="text-sm">
                   {cohort.trainer.name} ({cohort.trainer.type})
                   {cohort.trainer.contact && (
-                    <span className="text-gray-500 block">{cohort.trainer.contact}</span>
+                    <span className="text-gray-500 block">
+                      {cohort.trainer.contact}
+                    </span>
                   )}
                 </p>
               )}
@@ -437,7 +415,12 @@ export default function CohortDetailPage() {
               {editMode ? (
                 <Input
                   value={formData.performanceMetrics}
-                  onChange={(e) => setFormData(prev => ({ ...prev, performanceMetrics: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      performanceMetrics: e.target.value,
+                    }))
+                  }
                   placeholder="e.g., 16%, 1100AP, 60%"
                 />
               ) : (
@@ -452,7 +435,12 @@ export default function CohortDetailPage() {
               {editMode ? (
                 <Textarea
                   value={formData.performanceNotes}
-                  onChange={(e) => setFormData(prev => ({ ...prev, performanceNotes: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      performanceNotes: e.target.value,
+                    }))
+                  }
                   placeholder="Add any performance notes..."
                   rows={3}
                 />
@@ -468,7 +456,9 @@ export default function CohortDetailPage() {
                 <Label>Status</Label>
                 <Select
                   value={formData.status}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as any }))}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, status: value as any }))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -495,16 +485,25 @@ export default function CohortDetailPage() {
           <CardContent className="space-y-3">
             <div className="flex justify-between">
               <span className="text-gray-600">Start Date</span>
-              <span className="font-medium">{formatDate(cohort.startDate)}</span>
+              <span className="font-medium">
+                {formatDate(cohort.startDate)}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Expected End Date</span>
-              <span className="font-medium">{formatDate(cohort.expectedEndDate)}</span>
+              <span className="font-medium">
+                {formatDate(cohort.expectedEndDate)}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Current Duration</span>
               <span className="font-medium">
-                {Math.floor((new Date().getTime() - new Date(cohort.startDate).getTime()) / (1000 * 60 * 60 * 24))} days
+                {Math.floor(
+                  (new Date().getTime() -
+                    new Date(cohort.startDate).getTime()) /
+                    (1000 * 60 * 60 * 24)
+                )}{" "}
+                days
               </span>
             </div>
           </CardContent>
@@ -541,7 +540,9 @@ export default function CohortDetailPage() {
                       className="flex items-center justify-between p-2 bg-white rounded border"
                     >
                       <div>
-                        <p className="font-medium">{candidate.personalInfo.name}</p>
+                        <p className="font-medium">
+                          {candidate.personalInfo.name}
+                        </p>
                         <p className="text-sm text-gray-500">
                           {candidate.licenseStatus} • {candidate.callCenter}
                         </p>
@@ -577,7 +578,8 @@ export default function CohortDetailPage() {
                     </p>
                   </Link>
                   <p className="text-sm text-gray-500">
-                    {participant.personalInfo.email} • {participant.personalInfo.phone}
+                    {participant.personalInfo.email} •{" "}
+                    {participant.personalInfo.phone}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -616,9 +618,14 @@ export default function CohortDetailPage() {
         <CardContent>
           <div className="space-y-3">
             {cohort.milestones.map((milestone, index) => (
-              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+              <div
+                key={index}
+                className="flex items-center justify-between p-3 border rounded-lg"
+              >
                 <div>
-                  <p className="font-medium">{getStageDisplayName(milestone.stage)}</p>
+                  <p className="font-medium">
+                    {getStageDisplayName(milestone.stage)}
+                  </p>
                   {milestone.notes && (
                     <p className="text-sm text-gray-500">{milestone.notes}</p>
                   )}
@@ -638,4 +645,4 @@ export default function CohortDetailPage() {
       </Card>
     </div>
   );
-} 
+}
