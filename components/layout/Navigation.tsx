@@ -6,66 +6,137 @@ import { cn } from "@/lib/utils";
 import {
   Home,
   Users,
-  UserPlus,
   GraduationCap,
   UserCheck,
   Settings,
-  ClipboardList,
-  UserCog,
-  Shield,
+  Building2,
 } from "lucide-react";
+import { UserProfile, useAuth } from "@/components/auth/AuthProvider";
+
+// Define navigation items with permission requirements
+const navigationItems = [
+  {
+    name: "Dashboard",
+    href: "/",
+    icon: Home,
+    permission: "viewDashboard",
+  },
+  {
+    name: "Candidates",
+    href: "/candidates",
+    icon: Users,
+    permission: "viewCandidates",
+  },
+  {
+    name: "Cohorts",
+    href: "/cohorts",
+    icon: GraduationCap,
+    permission: "viewCohorts",
+  },
+  {
+    name: "Trainers",
+    href: "/trainers",
+    icon: UserCheck,
+    permission: "viewTrainers",
+  },
+  {
+    name: "Manager Portal",
+    href: "/managers",
+    icon: Building2,
+    permission: "viewManagerPortal",
+  },
+  {
+    name: "Admin",
+    href: "/admin",
+    icon: Settings,
+    permission: "viewAdmin",
+  },
+];
 
 export function Navigation() {
   const pathname = usePathname();
+  const { user, hasPermission } = useAuth();
 
-  const navigation = [
-    { name: "Dashboard", href: "/", icon: Home },
-    { name: "Candidates", href: "/candidates", icon: Users },
-    { name: "Cohorts", href: "/cohorts", icon: GraduationCap },
-    { name: "Trainers", href: "/trainers", icon: UserCog },
-    { name: "Admin", href: "/admin", icon: Shield },
-    { name: "Manager Portal", href: "/managers/login", icon: Shield },
-  ];
+  // Filter navigation items based on user permissions
+  const allowedNavItems = navigationItems.filter((item) =>
+    hasPermission(item.permission)
+  );
 
   return (
-    <nav className="flex flex-col w-64 bg-white border-r border-gray-200">
-      <div className="flex items-center h-16 px-4 border-b border-gray-200">
-        <h1 className="text-xl font-semibold text-gray-900">
-          Onboarding Tracker
-        </h1>
-      </div>
-      <div className="flex-1 overflow-y-auto">
-        <div className="px-2 py-4 space-y-1">
-          {navigation.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== "/" && pathname.startsWith(item.href));
-
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={cn(
-                  "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                  isActive
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                )}
-              >
-                <item.icon className="mr-3 h-5 w-5" />
-                {item.name}
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-      <div className="p-4 border-t border-gray-200">
-        <div className="flex items-center">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-900">Admin User</p>
-            <p className="text-xs text-gray-500">admin@callcenter.com</p>
+    <nav className="bg-white shadow-sm border-b">
+      <div className="container mx-auto px-4">
+        <div className="flex justify-between items-center h-16">
+          {/* Logo */}
+          <div className="flex items-center">
+            <Link href="/" className="text-xl font-bold text-gray-900">
+              Onboarding Tracker
+            </Link>
+            {user?.role && (
+              <div className="ml-3 text-xs text-gray-500">
+                {user.role === "admin" && "🔧 Admin"}
+                {user.role === "recruiter" && "📋 Recruiter"}
+                {user.role === "manager" && "👥 Manager"}
+                {user.role === "viewer" && "👀 Viewer"}
+              </div>
+            )}
           </div>
-          <Settings className="h-5 w-5 text-gray-400" />
+
+          {/* Navigation Links */}
+          <div className="hidden md:flex items-center space-x-8">
+            {allowedNavItems.map((item) => {
+              const isActive =
+                pathname === item.href ||
+                (item.href !== "/" && pathname.startsWith(item.href));
+
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                    isActive
+                      ? "text-blue-600 bg-blue-50"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                  )}
+                >
+                  <item.icon className="h-4 w-4 mr-2" />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* User Profile */}
+          <div className="flex items-center">
+            <UserProfile />
+          </div>
+        </div>
+
+        {/* Mobile Navigation */}
+        <div className="md:hidden pb-3 pt-2">
+          <div className="grid grid-cols-3 gap-1">
+            {allowedNavItems.map((item) => {
+              const isActive =
+                pathname === item.href ||
+                (item.href !== "/" && pathname.startsWith(item.href));
+
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={cn(
+                    "flex flex-col items-center px-2 py-2 rounded-md text-xs font-medium transition-colors",
+                    isActive
+                      ? "text-blue-600 bg-blue-50"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                  )}
+                >
+                  <item.icon className="h-5 w-5 mb-1" />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </div>
     </nav>

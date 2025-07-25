@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { googleCalendarService } from "@/lib/google-calendar-service";
 import { getCalendarByLocation } from "@/lib/google-calendar-config";
+import { useAuth } from "@/components/auth/AuthProvider";
 import type { Candidate } from "@/lib/types";
 import { GOOGLE_CALENDAR_CONFIG } from "@/lib/google-calendar-config";
 
@@ -49,12 +50,13 @@ export default function InterviewScheduler({
     candidate?.personalInfo?.name
   );
 
+  const { user } = useAuth(); // Get authenticated user
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
-  const [interviewerEmail, setInterviewerEmail] = useState("");
+  const [interviewerEmail, setInterviewerEmail] = useState(user?.email || "");
   const [candidateEmail, setCandidateEmail] = useState(
     candidate?.personalInfo?.email || ""
   );
@@ -70,6 +72,21 @@ export default function InterviewScheduler({
   >("hangoutsMeet");
 
   const calendarService = googleCalendarService;
+
+  // Helper function to create date in local timezone (fixes timezone bug)
+  const createLocalDate = (dateString: string): Date => {
+    // Parse date string as local date instead of UTC
+    const [year, month, day] = dateString.split("-").map(Number);
+    return new Date(year, month - 1, day); // month is 0-indexed
+  };
+
+  // Helper function to format date for input (ensures local timezone)
+  const formatDateForInput = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   // Get timezone info based on candidate location
   const getTimezoneInfo = () => {
@@ -190,6 +207,13 @@ export default function InterviewScheduler({
     };
   }, []);
 
+  // Auto-populate interviewer email when user is available
+  useEffect(() => {
+    if (user?.email && !interviewerEmail) {
+      setInterviewerEmail(user.email);
+    }
+  }, [user?.email, interviewerEmail]);
+
   const fetchAvailableSlots = async () => {
     if (!selectedDate) return;
 
@@ -275,9 +299,7 @@ export default function InterviewScheduler({
           "charlotte",
         notes:
           notes ||
-          `${interviewTitle}\n\nCandidate: ${
-            candidate.personalInfo.name
-          }\nPosition: Call Center Representative`,
+          `${interviewTitle}\n\nCandidate: ${candidate.personalInfo.name}\nPosition: Call Center Representative`,
         conferenceType: meetingType,
         eventTitle: interviewTitle, // Add this to the interface
       });
@@ -391,15 +413,21 @@ export default function InterviewScheduler({
             <Label>Interview Date *</Label>
             <Input
               type="date"
-              value={
-                selectedDate ? selectedDate.toISOString().split("T")[0] : ""
-              }
+              value={selectedDate ? formatDateForInput(selectedDate) : ""}
               onChange={(e) => {
-                setSelectedDate(new Date(e.target.value));
-                setAvailableSlots([]);
-                setSelectedTime(null);
+                if (e.target.value) {
+                  const localDate = createLocalDate(e.target.value);
+                  console.log("[InterviewScheduler] Date selected:", {
+                    inputValue: e.target.value,
+                    localDate: localDate,
+                    formattedForDisplay: localDate.toLocaleDateString(),
+                  });
+                  setSelectedDate(localDate);
+                  setAvailableSlots([]);
+                  setSelectedTime(null);
+                }
               }}
-              min={new Date().toISOString().split("T")[0]}
+              min={formatDateForInput(new Date())}
               required
             />
           </div>
@@ -476,8 +504,17 @@ export default function InterviewScheduler({
                 onChange={(e) => {
                   if (e.target.value && selectedDate) {
                     const [hours, minutes] = e.target.value.split(":");
-                    const newTime = new Date(selectedDate);
+                    // Create new time using the SAME date object to preserve local timezone
+                    const newTime = new Date(selectedDate.getTime());
                     newTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+                    console.log("[InterviewScheduler] Time selected:", {
+                      timeInput: e.target.value,
+                      selectedDate: selectedDate,
+                      combinedDateTime: newTime,
+                      formattedForDisplay: newTime.toLocaleString(),
+                    });
+
                     setSelectedTime(newTime);
                   }
                 }}
@@ -535,108 +572,126 @@ export default function InterviewScheduler({
           </div>
         )}
 
-        <div className="border-t pt-4">
-          <div className="text-sm text-gray-600 mb-4">
-            <p className="font-medium mb-1">
+        {/* Debug Information */}
+        {selectedTime && (
+          <div className="bg-gray-50 p-4 rounded-lg text-sm">
+            <h4 className="font-medium mb-2">
               This will create a calendar event with:
-            </p>
-            <ul className="list-disc list-inside space-y-1 ml-2">
-              <li>Title: {interviewTitle || "Interview"}</li>
+            </h4>
+            <ul className="space-y-1 text-gray-700">
               <li>
-                Date:{" "}
-                {selectedDate
-                  ? selectedDate.toLocaleDateString()
-                  : "Not selected"}
+                <strong>Title:</strong> {interviewTitle}
               </li>
               <li>
-                Time:{" "}
-                {selectedTime
-                  ? formatTimeWithTimezone(selectedTime)
-                  : "Not selected"}
+                <strong>Date:</strong>{" "}
+                {selectedTime.toLocaleDateString("en-US", {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
               </li>
-              <li>Duration: {duration} minutes</li>
               <li>
-                Attendees: {candidateEmail || "Candidate email"} and{" "}
-                {interviewerEmail || "Interviewer email"}
+                <strong>Time:</strong>{" "}
+                {selectedTime.toLocaleTimeString("en-US", {
+                  hour: "numeric",
+                  minute: "2-digit",
+                  timeZoneName: "short",
+                })}
+              </li>
+              <li>
+                <strong>Duration:</strong> {duration} minutes
+              </li>
+              <li>
+                <strong>Attendees:</strong> {candidateEmail} and{" "}
+                {interviewerEmail}
               </li>
               {meetingType === "hangoutsMeet" && (
-                <li>Google Meet link will be automatically added</li>
+                <li>
+                  <strong>Google Meet link will be automatically added</strong>
+                </li>
               )}
             </ul>
-          </div>
 
-          {/* Debug info - remove this in production */}
-          <div className="text-xs text-gray-500 mb-2 p-2 bg-gray-100 rounded">
-            <p className="font-semibold">Debug - Field values:</p>
-            <ul className="space-y-1 mt-1">
-              <li>
-                selectedDate: {selectedDate ? selectedDate.toString() : "null"}
-              </li>
-              <li>
-                selectedTime: {selectedTime ? selectedTime.toString() : "null"}
-              </li>
-              <li>
-                candidateEmail: &quot;{candidateEmail}&quot; (length:{" "}
-                {candidateEmail.length})
-              </li>
-              <li>
-                interviewerEmail: &quot;{interviewerEmail}&quot; (length:{" "}
-                {interviewerEmail.length})
-              </li>
-              <li>
-                interviewTitle: &quot;{interviewTitle}&quot; (length:{" "}
-                {interviewTitle.length})
-              </li>
-              <li>loading: {loading ? "true" : "false"}</li>
-            </ul>
-            <p className="font-semibold mt-2">Missing fields:</p>
-            <ul className="list-disc list-inside ml-2">
-              {!selectedDate && <li>Date not selected</li>}
-              {!selectedTime && <li>Time not selected</li>}
-              {!candidateEmail && <li>Candidate email missing</li>}
-              {!interviewerEmail && <li>Interviewer email missing</li>}
-              {!interviewTitle && <li>Interview title missing</li>}
-              {loading && <li>Currently loading...</li>}
-            </ul>
-            <p className="font-semibold mt-2">
-              Button disabled:{" "}
-              {!selectedDate ||
-              !selectedTime ||
-              !candidateEmail ||
-              !interviewerEmail ||
-              !interviewTitle ||
-              loading
+            <details className="mt-3">
+              <summary className="cursor-pointer text-xs text-gray-500">
+                Debug - Field values:
+              </summary>
+              <div className="mt-2 space-y-1 text-xs font-mono text-gray-600">
+                <div>
+                  <strong>selectedDate:</strong> {selectedDate?.toString()}
+                </div>
+                <div>
+                  <strong>selectedTime:</strong> {selectedTime?.toString()}
+                </div>
+                <div>
+                  <strong>candidateEmail:</strong> "{candidateEmail}" (length:{" "}
+                  {candidateEmail.length})
+                </div>
+                <div>
+                  <strong>interviewerEmail:</strong> "{interviewerEmail}"
+                  (length: {interviewerEmail.length})
+                </div>
+                <div>
+                  <strong>interviewTitle:</strong> "{interviewTitle}" (length:{" "}
+                  {interviewTitle.length})
+                </div>
+                <div>
+                  <strong>timezone:</strong> {timezoneInfo.timezone} (
+                  {timezoneInfo.display})
+                </div>
+                <div>
+                  <strong>loading:</strong> {loading.toString()}
+                </div>
+              </div>
+            </details>
+
+            {(!candidateEmail || !interviewerEmail) && (
+              <div className="mt-2 text-red-600 text-xs">
+                <strong>Missing fields:</strong>
+                {!candidateEmail && " candidateEmail"}
+                {!interviewerEmail && " interviewerEmail"}
+              </div>
+            )}
+
+            <div className="mt-2 text-xs text-gray-500">
+              <strong>Button disabled:</strong>{" "}
+              {!selectedTime || !interviewerEmail || !candidateEmail
                 ? "YES"
                 : "NO"}
-            </p>
+            </div>
           </div>
+        )}
 
-          <div className="flex gap-3">
-            <Button
-              onClick={handleSchedule}
-              disabled={
-                !selectedDate ||
-                !selectedTime ||
-                !candidateEmail ||
-                !interviewerEmail ||
-                !interviewTitle ||
-                loading
-              }
-              className="flex-1"
-            >
-              {loading ? (
-                "Creating Event..."
-              ) : (
-                <>
-                  <Calendar className="mr-2 h-4 w-4" />
-                  Create Calendar Event
-                </>
-              )}
-            </Button>
-            <Button variant="outline" onClick={onCancel} disabled={loading}>
-              Cancel
-            </Button>
-          </div>
+        {/* Schedule Button */}
+        <div className="flex gap-4">
+          <Button
+            onClick={onCancel}
+            variant="outline"
+            className="flex-1"
+            disabled={loading}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSchedule}
+            disabled={
+              !selectedTime || !interviewerEmail || !candidateEmail || loading
+            }
+            className="flex-1"
+          >
+            {loading ? (
+              <>
+                <Clock className="mr-2 h-4 w-4 animate-spin" />
+                Scheduling...
+              </>
+            ) : (
+              <>
+                <Calendar className="mr-2 h-4 w-4" />
+                Schedule Interview
+              </>
+            )}
+          </Button>
         </div>
       </CardContent>
     </Card>

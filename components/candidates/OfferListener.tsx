@@ -19,8 +19,20 @@ export function OfferListener({ candidateId, onUpdate }: OfferListenerProps) {
   const previousFullAgentDataRef = useRef<any>(null);
 
   useEffect(() => {
-    console.log("[OfferListener] Setting up listeners for candidate:", candidateId);
-    
+    // Guard clause: don't set up listeners if candidateId is invalid
+    if (!candidateId || candidateId.trim() === "") {
+      console.log(
+        "[OfferListener] Invalid candidateId, skipping listener setup:",
+        candidateId
+      );
+      return;
+    }
+
+    console.log(
+      "[OfferListener] Setting up listeners for candidate:",
+      candidateId
+    );
+
     // Listen to pre-license offer
     const preLicenseOfferRef = doc(db, "offers", candidateId);
     const unsubscribePreLicense = onSnapshot(preLicenseOfferRef, (docSnap) => {
@@ -41,7 +53,9 @@ export function OfferListener({ candidateId, onUpdate }: OfferListenerProps) {
         });
 
         if (previousPreLicenseDataRef.current === dataStr) {
-          console.log("[OfferListener] Pre-license data unchanged, skipping update");
+          console.log(
+            "[OfferListener] Pre-license data unchanged, skipping update"
+          );
           return;
         }
 
@@ -93,7 +107,9 @@ export function OfferListener({ candidateId, onUpdate }: OfferListenerProps) {
         });
 
         if (previousFullAgentDataRef.current === dataStr) {
-          console.log("[OfferListener] Full agent data unchanged, skipping update");
+          console.log(
+            "[OfferListener] Full agent data unchanged, skipping update"
+          );
           return;
         }
 
@@ -103,15 +119,17 @@ export function OfferListener({ candidateId, onUpdate }: OfferListenerProps) {
         const updates: Partial<Candidate> = {
           offers: {
             // Preserve existing pre-license offer data
-            preLicenseOffer: previousPreLicenseDataRef.current ? {
-              sent: true,
-              signed: true,
-              sentAt: new Date(),
-              signedAt: new Date(),
-            } : {
-              sent: false,
-              signed: false,
-            },
+            preLicenseOffer: previousPreLicenseDataRef.current
+              ? {
+                  sent: true,
+                  signed: true,
+                  sentAt: new Date(),
+                  signedAt: new Date(),
+                }
+              : {
+                  sent: false,
+                  signed: false,
+                },
             fullAgentOffer: {
               sent: !!offerData.sentAt,
               signed: !!offerData.signed,

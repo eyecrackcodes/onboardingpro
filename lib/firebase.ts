@@ -1,25 +1,38 @@
+// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 
-// TODO: Replace with your actual Firebase configuration
+// Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyANJ_tI3CDviROW6rGZiskFZH0BS7WuHPM",
-  authDomain: "onboarding-tracker-c16cc.firebaseapp.com",
-  projectId: "onboarding-tracker-c16cc",
-  storageBucket: "onboarding-tracker-c16cc.firebasestorage.app",
-  messagingSenderId: "200361506669",
-  appId: "1:200361506669:web:827545f6cbbadab5148c64",
-  measurementId: "G-XJ797GRGDN",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore
+// Initialize Firebase services
 export const db = getFirestore(app);
-
-// Initialize Storage
+export const auth = getAuth(app);
 export const storage = getStorage(app);
+
+// Configure Google Auth Provider
+export const googleProvider = new GoogleAuthProvider();
+googleProvider.addScope("email");
+googleProvider.addScope("profile");
+// Request Google Calendar access for interview scheduling
+googleProvider.addScope("https://www.googleapis.com/auth/calendar");
+
+// Analytics (only in browser)
+export const analytics =
+  typeof window !== "undefined" ? getAnalytics(app) : null;
 
 export default app;
