@@ -54,19 +54,12 @@ export default function ManagerDashboard() {
 
     setManagerInfo(auth.manager);
 
-    const fetchData = async () => {
-      try {
-        const data = await getCandidates();
-        setCandidates(data);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching candidates:", error);
-        setLoading(false);
-      }
-    };
+    // Subscribe to real-time updates
+    const unsubscribe = subscribeToCandidates((data) => {
+      setCandidates(data);
+      setLoading(false);
+    });
 
-    fetchData();
-    const unsubscribe = subscribeToCandidates(setCandidates);
     return () => unsubscribe();
   }, [router]);
 
