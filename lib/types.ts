@@ -325,7 +325,7 @@ export interface UserPermissions {
   // Interview management
   viewInterviews: boolean;
   scheduleInterviews: boolean;
-  conduteInterviews: boolean;
+  conductInterviews: boolean;
   editEvaluations: boolean;
 
   // Cohort management
@@ -369,7 +369,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, UserPermissions> = {
     deleteCandidates: true,
     viewInterviews: true,
     scheduleInterviews: true,
-    conduteInterviews: true,
+    conductInterviews: true,
     editEvaluations: true,
     viewCohorts: true,
     editCohorts: true,
@@ -388,7 +388,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, UserPermissions> = {
     deleteCandidates: true,
     viewInterviews: true,
     scheduleInterviews: true,
-    conduteInterviews: true,
+    conductInterviews: true,
     editEvaluations: true,
     viewCohorts: true,
     editCohorts: true,
@@ -407,7 +407,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, UserPermissions> = {
     deleteCandidates: false,
     viewInterviews: true,
     scheduleInterviews: true,
-    conduteInterviews: true,
+    conductInterviews: true,
     editEvaluations: true,
     viewCohorts: false,
     editCohorts: false,
@@ -424,9 +424,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, UserPermissions> = {
     viewCandidates: true,
     editCandidates: false,
     deleteCandidates: false,
-    viewInterviews: false,
+    viewInterviews: true,
     scheduleInterviews: false,
-    conduteInterviews: false,
+    conductInterviews: false,
     editEvaluations: false,
     viewCohorts: false,
     editCohorts: false,

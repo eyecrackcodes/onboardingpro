@@ -67,7 +67,16 @@ export default function UsersManagementPage() {
 
   useEffect(() => {
     const unsubscribe = subscribeToUsers((users) => {
-      setUsers(users);
+      // Check for duplicate IDs
+      const uniqueUsers = users.filter((user, index, self) => 
+        index === self.findIndex((u) => u.id === user.id)
+      );
+      
+      if (uniqueUsers.length !== users.length) {
+        console.warn(`Found ${users.length - uniqueUsers.length} duplicate user(s). Deduplicating...`);
+      }
+      
+      setUsers(uniqueUsers);
       setLoading(false);
     });
 
@@ -101,11 +110,20 @@ export default function UsersManagementPage() {
     setSaving(true);
     try {
       const permissions = ROLE_PERMISSIONS[editRole];
+      console.log("Updating user role:", {
+        userId: editingUser.id,
+        newRole: editRole,
+        permissions
+      });
+      
       await updateUserRole(editingUser.id, editRole, permissions);
       setEditingUser(null);
+      console.log("User role updated successfully");
     } catch (error) {
       console.error("Error updating user role:", error);
-      alert("Failed to update user role");
+      // Show more detailed error message
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      alert(`Failed to update user role: ${errorMessage}`);
     } finally {
       setSaving(false);
     }

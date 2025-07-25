@@ -49,25 +49,13 @@ export default function CandidatesPage() {
 
   useEffect(() => {
     // Initial data fetch
-    const fetchData = async () => {
-      try {
-        const data = await getCandidates();
-        setCandidates(data);
-        setFilteredCandidates(data);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching candidates:", error);
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-
     // Set up real-time listener
     const unsubscribe = subscribeToCandidates((updatedCandidates) => {
       setCandidates(updatedCandidates);
+      setFilteredCandidates(updatedCandidates);
       // Apply current filters to updated data
       filterCandidates(updatedCandidates, searchTerm, filters);
+      setLoading(false);
     });
 
     return () => unsubscribe();

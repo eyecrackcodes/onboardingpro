@@ -4,6 +4,7 @@ import {
   getDocs,
   getDoc,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -914,20 +915,29 @@ export const getCohortStatistics = async (cohortId: string) => {
 export async function createOrUpdateUser(userData: AppUser): Promise<void> {
   try {
     const userRef = doc(db, "users", userData.id);
-    await updateDoc(userRef, {
-      ...userData,
-      createdAt: userData.createdAt,
-      lastLoginAt: serverTimestamp(),
-    }).catch(async () => {
-      // If document doesn't exist, create it
-      await addDoc(collection(db, "users"), {
-        ...userData,
-        createdAt: serverTimestamp(),
-        lastLoginAt: serverTimestamp(),
-      });
-    });
     
-    console.log("[Firestore] User created/updated:", userData.email);
+    // Try to update existing document
+    try {
+      await updateDoc(userRef, {
+        ...userData,
+        lastLoginAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      console.log("[Firestore] User updated:", userData.email);
+    } catch (updateError: any) {
+      // If document doesn't exist (error code 'not-found'), create it with the specific ID
+      if (updateError.code === 'not-found') {
+        await setDoc(userRef, {
+          ...userData,
+          createdAt: serverTimestamp(),
+          lastLoginAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        console.log("[Firestore] User created:", userData.email);
+      } else {
+        throw updateError;
+      }
+    }
   } catch (error) {
     console.error("[Firestore] Error creating/updating user:", error);
     throw error;
@@ -1009,6 +1019,13 @@ export async function getAllUsers(): Promise<AppUser[]> {
 export async function updateUserRole(userId: string, role: UserRole, permissions: any): Promise<void> {
   try {
     const userRef = doc(db, "users", userId);
+    
+    // First check if the document exists
+    const userDoc = await getDoc(userRef);
+    if (!userDoc.exists()) {
+      throw new Error(`User document not found for ID: ${userId}`);
+    }
+    
     await updateDoc(userRef, {
       role,
       permissions,
@@ -1072,6 +1089,51 @@ export async function deleteUser(userId: string): Promise<void> {
     console.log("[Firestore] User deleted:", userId);
   } catch (error) {
     console.error("[Firestore] Error deleting user:", error);
+    throw error;
+  }
+}
+
+// Fix user document IDs to match Firebase Auth UIDs
+export async function fixUserDocumentIds(): Promise<void> {
+  try {
+    console.log("[Firestore] Starting user document ID fix...");
+    
+    // Get all users
+    const usersSnapshot = await getDocs(collection(db, "users"));
+    const batch = writeBatch(db);
+    let fixCount = 0;
+    
+    for (const userDoc of usersSnapshot.docs) {
+      const userData = userDoc.data();
+      const docId = userDoc.id;
+      const authId = userData.id;
+      
+      // Check if document ID doesn't match the user's auth ID
+      if (docId !== authId && authId) {
+        console.log(`[Firestore] Found mismatch - Doc ID: ${docId}, Auth ID: ${authId}`);
+        
+        // Create new document with correct ID
+        const correctRef = doc(db, "users", authId);
+        batch.set(correctRef, {
+          ...userData,
+          updatedAt: serverTimestamp(),
+        });
+        
+        // Delete old document
+        batch.delete(userDoc.ref);
+        
+        fixCount++;
+      }
+    }
+    
+    if (fixCount > 0) {
+      await batch.commit();
+      console.log(`[Firestore] Fixed ${fixCount} user document(s) with mismatched IDs`);
+    } else {
+      console.log("[Firestore] No user documents with mismatched IDs found");
+    }
+  } catch (error) {
+    console.error("[Firestore] Error fixing user document IDs:", error);
     throw error;
   }
 }

@@ -261,11 +261,12 @@ class AuthService {
       return permissions.viewTrainers;
     } else if (route.startsWith("/managers")) {
       return permissions.viewManagerPortal;
-    } else if (route === "/") {
+    } else if (route === "/" || route === "/dashboard") {
       return permissions.viewDashboard;
     }
 
-    // Default to allowing access for other routes
+    // For authenticated users, allow access to other routes by default
+    // This includes public pages like profile, settings, etc.
     return true;
   }
 }

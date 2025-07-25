@@ -15,6 +15,7 @@ import {
   Key,
   BarChart3,
   ArrowRight,
+  Wrench,
 } from "lucide-react";
 import { RouteGuard, useAuth } from "@/components/auth/AuthProvider";
 
@@ -39,12 +40,21 @@ const adminFeatures = [
   },
   {
     title: "Background Check Status",
-    description: "Monitor and debug background check integrations",
-    href: "/admin/background-check-status",
+    description: "View and monitor all background check statuses",
     icon: Shield,
+    href: "/admin/background-check-status",
     permission: "manageSettings",
     color: "text-purple-600",
     bgColor: "bg-purple-50",
+  },
+  {
+    title: "Fix User Document IDs",
+    description: "Repair mismatched user document IDs",
+    icon: Wrench,
+    href: "/admin/fix-user-ids",
+    permission: "manageSettings",
+    color: "text-orange-600",
+    bgColor: "bg-orange-50",
   },
   {
     title: "Debug Environment",
