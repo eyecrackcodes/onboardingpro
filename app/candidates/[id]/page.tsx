@@ -538,18 +538,17 @@ export default function CandidateDetailPage() {
           }`}
           ref={assignmentRef}
         >
-          <ClassAssignmentSection
-            candidate={candidate}
-            saving={false}
-            onUpdate={(field: string | Partial<Candidate>, value?: any) => {
-              if (typeof field === 'string') {
-                handleUpdate({ [field]: value });
-              } else {
-                handleUpdate(field);
-              }
-            }}
-            onNestedUpdate={handleNestedUpdate}
-          />
+                     <ClassAssignmentSection
+             candidate={candidate}
+             saving={false}
+             onUpdate={(field: string | Partial<Candidate>, value?: any) => {
+               if (typeof field === 'string') {
+                 handleUpdate({ [field]: value });
+               } else {
+                 handleUpdate(field);
+               }
+             }}
+           />
         </TabsContent>
       </Tabs>
     </div>
