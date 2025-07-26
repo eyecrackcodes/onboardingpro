@@ -31,6 +31,7 @@ import {
 } from "@/lib/firestore";
 import { getPipelineStages, getStatusColor, formatDate } from "@/lib/utils";
 import { CompactProgressPipeline } from "@/components/candidates/ProgressPipeline";
+import { QuickCallButton } from "@/components/candidates/QuickCallButton";
 import type { Candidate } from "@/lib/types";
 
 export default function CandidatesPage() {
@@ -467,11 +468,20 @@ export default function CandidatesPage() {
                         </Badge>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <Link href={`/candidates/${candidate.id}`}>
-                          <Button variant="ghost" size="sm">
-                            View
-                          </Button>
-                        </Link>
+                        <div className="flex items-center justify-end gap-2">
+                          <QuickCallButton
+                            candidate={{
+                              id: candidate.id,
+                              name: candidate.personalInfo.name,
+                              phone: candidate.personalInfo.phone,
+                            }}
+                          />
+                          <Link href={`/candidates/${candidate.id}`}>
+                            <Button variant="ghost" size="sm">
+                              View
+                            </Button>
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );
