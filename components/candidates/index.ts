@@ -18,3 +18,4 @@ export { I9Sender } from "./I9Sender";
 export { CandidateNotes } from "./CandidateNotes";
 export { QuickCallButton } from "./QuickCallButton";
 export { CallDispositionForm } from "./CallDispositionForm";
+export { CallControls } from "./CallControls";
