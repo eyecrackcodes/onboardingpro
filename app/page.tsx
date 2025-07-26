@@ -20,6 +20,7 @@ import { getCandidates, getCohorts, getTrainers } from "@/lib/firestore";
 import { OnboardingFunnel } from "@/components/dashboard/OnboardingFunnel";
 import { RecruiterAlerts } from "@/components/dashboard/RecruiterAlerts";
 import { BackgroundCheckNotifications } from "@/components/dashboard/BackgroundCheckNotifications";
+import { TaskQueue } from "@/components/dashboard/TaskQueue";
 import type { Candidate, Cohort, Trainer } from "@/lib/types";
 
 export default function DashboardPage() {
@@ -254,6 +255,9 @@ export default function DashboardPage() {
 
       {/* Recruiter Alerts - Show at the top for visibility */}
       <RecruiterAlerts candidates={filteredCandidates} />
+
+      {/* Task Queue - Show follow-up tasks from call dispositions */}
+      <TaskQueue />
 
       {/* Background Check Notifications */}
       <BackgroundCheckNotifications />

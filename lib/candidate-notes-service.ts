@@ -9,6 +9,7 @@ import {
   limit,
   getDocs,
 } from "firebase/firestore";
+import { TaskService } from "./task-service";
 
 export interface CallDisposition {
   status: string;
@@ -36,7 +37,12 @@ export class CandidateNotesService {
     disposition: CallDisposition
   ): Promise<void> {
     try {
-      // Format the comprehensive note
+      console.log("💾 Saving call disposition:", {
+        candidateId,
+        callSid: callRecord.callSid,
+        disposition,
+      });
+
       const noteContent = this.formatCallNote(callRecord, disposition);
 
       const note: Omit<CandidateNote, "id"> = {
@@ -49,12 +55,34 @@ export class CandidateNotesService {
       };
 
       // Save to candidate_notes collection
-      await addDoc(collection(db, "candidate_notes"), {
+      const docRef = await addDoc(collection(db, "candidate_notes"), {
         ...note,
         createdAt: serverTimestamp(),
       });
 
       console.log("✅ Call disposition saved successfully");
+
+      // 🆕 Create task from disposition if next action is specified
+      if (disposition.nextAction && disposition.nextAction !== "no_action") {
+        try {
+          const taskId = await TaskService.createTaskFromDisposition(
+            candidateId,
+            callRecord.candidateName || "Unknown Candidate",
+            disposition,
+            callRecord.id || callRecord.callSid
+          );
+
+          if (taskId) {
+            console.log("✅ Task created from call disposition:", taskId);
+          }
+        } catch (taskError) {
+          console.error(
+            "⚠️ Failed to create task from disposition:",
+            taskError
+          );
+          // Don't throw here - disposition save was successful
+        }
+      }
     } catch (error) {
       console.error("❌ Error saving call disposition:", error);
       throw new Error("Failed to save call disposition");
@@ -84,34 +112,29 @@ export class CandidateNotesService {
     }
   }
 
-  private static formatCallNote(
-    callRecord: any,
-    disposition: CallDisposition
-  ): string {
+  static formatCallNote(callRecord: any, disposition: CallDisposition): string {
     const timestamp = new Date().toLocaleString();
-    const status = disposition.status.toUpperCase();
 
-    let note = `[${timestamp}] CALL - ${status}\n`;
-    note += `📞 CALL DETAILS:\n`;
-    note += `Phone: ${callRecord.candidatePhone}\n`;
-    note += `Purpose: ${callRecord.purpose}\n`;
-    note += `Status: ${status}\n\n`;
+    let note = `📞 Call completed at ${timestamp}\n\n`;
+    note += `**Status:** ${disposition.status}\n`;
+    note += `**Outcome:** ${disposition.outcome}\n`;
 
-    note += `📋 CALL OUTCOME: ${disposition.outcome.toUpperCase()}\n\n`;
-
-    if (disposition.conversationNotes) {
-      note += `💬 CONVERSATION NOTES:\n`;
-      note += `${disposition.conversationNotes}\n\n`;
+    if (disposition.nextAction && disposition.nextAction !== "no_action") {
+      note += `**Next Action:** ${disposition.nextAction.replace("_", " ")}\n`;
     }
 
-    if (disposition.nextAction) {
-      note += `📅 NEXT ACTION: ${disposition.nextAction.toUpperCase()}\n\n`;
+    if (disposition.conversationNotes) {
+      note += `\n**Conversation Notes:**\n${disposition.conversationNotes}\n`;
     }
 
     if (disposition.internalNotes) {
-      note += `🔒 INTERNAL NOTES:\n`;
-      note += `${disposition.internalNotes}\n`;
+      note += `\n**Internal Notes:**\n${disposition.internalNotes}\n`;
     }
+
+    note += `\n**Call Details:**\n`;
+    note += `- Call SID: ${callRecord.callSid}\n`;
+    note += `- Duration: ${callRecord.duration || "N/A"}\n`;
+    note += `- Phone: ${callRecord.candidatePhone}\n`;
 
     return note;
   }
@@ -135,10 +158,38 @@ export class CandidateNotesService {
         createdAt: serverTimestamp(),
       });
 
-      console.log("✅ General note saved successfully");
+      console.log("✅ General note added successfully");
     } catch (error) {
-      console.error("❌ Error saving general note:", error);
-      throw new Error("Failed to save note");
+      console.error("❌ Error adding general note:", error);
+      throw new Error("Failed to add note");
+    }
+  }
+
+  static async addInterviewNote(
+    candidateId: string,
+    content: string,
+    interviewData?: any,
+    createdBy?: string
+  ): Promise<void> {
+    try {
+      const note: Omit<CandidateNote, "id"> = {
+        candidateId,
+        type: "interview",
+        content,
+        createdAt: new Date(),
+        createdBy,
+      };
+
+      await addDoc(collection(db, "candidate_notes"), {
+        ...note,
+        createdAt: serverTimestamp(),
+        interviewData,
+      });
+
+      console.log("✅ Interview note added successfully");
+    } catch (error) {
+      console.error("❌ Error adding interview note:", error);
+      throw new Error("Failed to add interview note");
     }
   }
 }

@@ -29,6 +29,7 @@ import { InterviewProgressIndicator } from "@/components/candidates/InterviewPro
 import { OfferListener } from "@/components/candidates/OfferListener";
 import { I9Sender } from "@/components/candidates/I9Sender";
 import { ProgressPipeline } from "@/components/candidates/ProgressPipeline";
+import { CandidateNotes } from "@/components/candidates/CandidateNotes";
 import { getPipelineStages } from "@/lib/utils";
 
 export default function CandidateDetailPage() {
@@ -299,7 +300,7 @@ export default function CandidateDetailPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} ref={tabsRef}>
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="interview">Interview</TabsTrigger>
           <TabsTrigger value="i9">I-9 Form</TabsTrigger>
@@ -307,6 +308,7 @@ export default function CandidateDetailPage() {
           <TabsTrigger value="offers">Offers</TabsTrigger>
           <TabsTrigger value="licensing">Licensing</TabsTrigger>
           <TabsTrigger value="assignment">Assignment</TabsTrigger>
+          <TabsTrigger value="notes">Notes</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -522,6 +524,13 @@ export default function CandidateDetailPage() {
             candidate={candidate}
             onUpdate={handleUpdate}
             onNestedUpdate={handleNestedUpdate}
+          />
+        </TabsContent>
+
+        <TabsContent value="notes" className="space-y-6">
+          <CandidateNotes
+            candidateId={candidateId}
+            candidateName={candidate.personalInfo.name}
           />
         </TabsContent>
       </Tabs>
