@@ -27,6 +27,9 @@ export async function POST(request: NextRequest) {
     return new NextResponse(twiml, {
       headers: {
         "Content-Type": "text/xml",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "*",
       },
     });
   } catch (error: any) {
@@ -44,6 +47,9 @@ export async function POST(request: NextRequest) {
     return new NextResponse(errorTwiml, {
       headers: {
         "Content-Type": "text/xml",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "*",
       },
     });
   }
@@ -52,4 +58,15 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   // Handle GET requests the same way
   return POST(request);
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+    },
+  });
 }

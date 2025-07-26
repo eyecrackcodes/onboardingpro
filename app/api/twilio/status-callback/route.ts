@@ -28,7 +28,14 @@ export async function POST(request: NextRequest) {
       console.warn("⚠️ No CallSid provided in status callback");
       return NextResponse.json(
         { message: "No CallSid provided" },
-        { status: 400 }
+        {
+          status: 400,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+          },
+        }
       );
     }
 
@@ -42,7 +49,14 @@ export async function POST(request: NextRequest) {
         console.warn("⚠️ No call record found for CallSid:", callSid);
         return NextResponse.json(
           { message: "Call record not found" },
-          { status: 404 }
+          {
+            status: 404,
+            headers: {
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+              "Access-Control-Allow-Headers": "*",
+            },
+          }
         );
       }
 
@@ -66,11 +80,20 @@ export async function POST(request: NextRequest) {
         duration: duration || "N/A",
       });
 
-      return NextResponse.json({
-        message: "Status updated successfully",
-        callSid,
-        status: callStatus,
-      });
+      return NextResponse.json(
+        {
+          message: "Status updated successfully",
+          callSid,
+          status: callStatus,
+        },
+        {
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+          },
+        }
+      );
     } catch (firestoreError: any) {
       console.error("❌ Firestore error in status callback:", firestoreError);
       return NextResponse.json(
@@ -78,14 +101,39 @@ export async function POST(request: NextRequest) {
           error: "Failed to update call status",
           details: firestoreError.message,
         },
-        { status: 500 }
+        {
+          status: 500,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+          },
+        }
       );
     }
   } catch (error: any) {
     console.error("❌ Status callback error:", error);
     return NextResponse.json(
       { error: "Status callback failed", details: error.message },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "*",
+        },
+      }
     );
   }
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+    },
+  });
 }
