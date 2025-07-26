@@ -11,6 +11,25 @@ const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
 // Development mode flag - simulates calls without making real Twilio requests
 const DEV_MODE = process.env.NODE_ENV === "development";
 
+// Get the correct app URL based on environment
+function getAppUrl(request: NextRequest): string {
+  // Try to get URL from environment variable first
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+
+  // Get URL from request headers
+  const host = request.headers.get("host");
+  const protocol = request.headers.get("x-forwarded-proto") || "https";
+
+  if (host) {
+    return `${protocol}://${host}`;
+  }
+
+  // Fallback for development
+  return "http://localhost:3000";
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log("🔥 Twilio API route called");
@@ -56,6 +75,10 @@ export async function POST(request: NextRequest) {
 
     console.log("📱 Cleaned phone number:", candidatePhone);
 
+    // Get the correct app URL
+    const appUrl = getAppUrl(request);
+    console.log("🌐 Using app URL:", appUrl);
+
     // Check if we should force a real call
     const forceRealCall =
       callRequest.forceRealCall ||
@@ -73,11 +96,10 @@ export async function POST(request: NextRequest) {
       const client = twilio(accountSid, authToken);
 
       // Create TwiML URL for the call
-      const twimlUrl = `${
-        process.env.NEXT_PUBLIC_APP_URL || "https://your-app-domain.vercel.app"
-      }/api/twilio/twiml?candidate=${encodeURIComponent(
+      const twimlUrl = `${appUrl}/api/twilio/twiml?candidate=${encodeURIComponent(
         callRequest.candidateName
       )}&purpose=${encodeURIComponent(callRequest.purpose)}`;
+      console.log("🎵 TwiML URL:", twimlUrl);
 
       try {
         // Make the actual Twilio call
@@ -85,10 +107,7 @@ export async function POST(request: NextRequest) {
           from: twilioPhoneNumber,
           to: candidatePhone,
           url: twimlUrl,
-          statusCallback: `${
-            process.env.NEXT_PUBLIC_APP_URL ||
-            "https://your-app-domain.vercel.app"
-          }/api/twilio/status-callback`,
+          statusCallback: `${appUrl}/api/twilio/status-callback`,
           statusCallbackEvent: [
             "initiated",
             "ringing",
